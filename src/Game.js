@@ -52,62 +52,116 @@ class ListLayout extends PIXI.Container {
     }
 }
 
-class Chest extends PIXI.Container {
-    constructor() {
+class InteractiveObject extends PIXI.Container {
+    constructor(texture) {
         super();
-        this.sprite = new PIXI.Sprite();
-        this.sprite.texture = G.closed;
+        this.sprite = new PIXI.Sprite.from(texture);
         this.sprite.anchor.set(0.5, 0.5);
         this.addChild(this.sprite);
 
         this.interactive = true;
-        this.hitArea = new PIXI.Circle(0,0,30);
-
-        this.clicked = false;
+        this.buttonMode = true;
+        this.hitArea = this.sprite.getLocalBounds();
+        this.select = false;
+        this.active = false;
     }
 
-    mousedown(mouseData) {
-        this.clicked = true;
+    onSelect() {
     }
 
-    mouseupoutside(mouseData) {
-        this.clicked = false;
+    onDeselect () {
     }
 
-    mouseup(mouseData) {
-        if(this.clicked) {
-            this.addChild(new Item());
+    onActivate () {
+    }
+
+    onDeactivate () {
+    }
+
+    mouseover() {
+        this.select = true;
+        this.onSelect();
+    }
+
+    mouseout() {
+        if (!this.active) {
+            this.onDeselect();
         }
     }
 
-    mouseover(mouseData) {
-        this.sprite.texture = G.opened;
+    mousedown() {
+        this.active = true;
+        this.onActivate();
     }
 
-    mouseout(mouseData) {
-        this.sprite.texture = G.closed;
+    mouseup() {
+        if(this.active) {
+            this.active = false;
+            this.onDeactivate();
+        }
+    }
+
+    mouseupoutside() {
+        if(this.active) {
+            this.mouseout();
+            this.mouseup();
+        }
     }
 }
 
-class Item extends PIXI.Container {
+class Chest extends InteractiveObject {
     constructor() {
-        super();
-        this.sprite = new PIXI.Sprite();
-        this.addChild(this.sprite);
+        super(G.closed);
+    }
+
+    onSelect() {
+        this.sprite.scale.set(1.1);
+    }
+
+    onDeselect() {
+        this.sprite.scale.set(1);
+    }
+
+    onActivate() {
+        this.sprite.texture = G.opened;
+    }
+
+    onDeactivate() {
+
+    }
+
+    action() {
+        this.addChild(this.generateItem());
+    }
+
+    generateItem() {
         const p = Math.random();
+        let texture = G.suit;
         if(p < .5)
-            this.sprite.texture = G.cloud;
-        else if (p < 0.8)
-            this.sprite.texture = G.leaf;
-        else
-            this.sprite.texture = G.suit;
-        this.sprite.anchor.set(.5, .5);
-        this.t = 0;
+            texture = G.cloud;
+        else if (p < .8)
+            texture = G.leaf;
+        return new Item(texture);
+    }
+}
+
+class Item extends InteractiveObject {
+    constructor(texture) {
+        super(texture);
         G.animations.push(this);
     }
 
     animate(delta) {
-        this.t += delta;
-        this.position.y = -this.t;
+        console.log(this.active)
+        if(!this.active)
+            this.position.y -= delta;
+    }
+
+    onSelect() {
+        this.sprite.scale.set(1.1);
+    }
+
+    onDeselect() {
+        this.sprite.scale.set(1);
     }
 }
