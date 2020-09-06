@@ -1,4 +1,4 @@
-class Animation {
+class BaseAnimation {
     constructor() {
         this.t = 0;
         this.active = 0;
@@ -7,31 +7,78 @@ class Animation {
     start() {
         this.t = 0;
         this.active = 1;
+        this.value = this.calculate;
+        G.animations.push(this);
     }
 
     stop() {
-        this.t = 0;
         this.active = 0;
+        const v = this.calculate();
+        this.value = () => {return v;};
     }
 
-    play() {
-        this.active = 1;
-    }
-
-    pause() {
-        this.active = 0;
+    calculate() {
+        return undefined;
     }
 
     update(delta) {
-        this.t += adjustedDelta = delta * active;
+        this.t += delta;
+        return this.active;
     }
 }
 
-class ExpandAnimation extends Animation {
-    constructor(factor, duration, eccentricity) {
+class FiniteAnimation extends BaseAnimation {
+    constructor(lifetime) {
         super();
-        this.factor = factor;
-        this.duration = duration;
+        this.lifetime = lifetime;
+    }
+
+    update(delta) {
+        this.t += delta;
+        if (this.t > this.lifetime) {
+            this.t = this.lifetime;
+            this.stop();
+        }
+        return this.active;
+    }
+}
+
+/**
+ * Function that interpolates from 1 to @factor over a duration of @lifetime
+ * using the function 
+ */
+class ExpandAnimation extends FiniteAnimation {
+    constructor(lifetime, start, target, eccentricity) {
+        super(lifetime);
+        this.a = start
+        this.b = target;
         this.eccentricity = eccentricity;
+        this.value = () => {return this.a;};
+    }
+
+    restart(start, target) {
+        this.t = 0;
+        this.a = start;
+        this.b = target;
+        if(this.active != 1) {
+            this.start();
+        }
+    }
+
+    calculate() {
+        return this.a + Math.pow(this.t/this.lifetime, this.eccentricity) * (this.b - this.a);
+    }
+}
+
+class Oscillation extends BaseAnimation {
+    constructor(speed, max) {
+        super();
+        this.max = max;
+        this.speed = speed;
+        this.value = () => {return 0};
+    }
+
+    calculate() {
+        return Math.sin(this.speed * this.t) * this.max;
     }
 }

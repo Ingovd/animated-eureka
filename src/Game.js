@@ -6,6 +6,7 @@ class Game extends PIXI.Application {
         this.cloud = new PIXI.Texture.from("assets/sprites/item_cloud.png");
         this.leaf = new PIXI.Texture.from("assets/sprites/item_green_leaf.png");
         this.suit = new PIXI.Texture.from("assets/sprites/item_tanooki_suit.png");
+        this.gameObjects = [];
         this.animations = [];
     }
 
@@ -22,8 +23,16 @@ class Game extends PIXI.Application {
     }
 
     update(delta) {
-        this.animations.forEach(element => {
-            element.animate(delta);
+        let j = 0
+        for (let i = 0; i < this.animations.length; i++) {
+            this.animations[j] = this.animations[i];
+            const active = this.animations[i].update(delta);
+            j += active;
+        }
+        this.animations = this.animations.slice(0, j);
+
+        this.gameObjects.forEach(element => {
+            element.update(delta);
         });
     }
 
@@ -39,6 +48,7 @@ class ListLayout extends PIXI.Container {
     constructor(space) {
         super();
         this.space = space;
+        this.transform.scale.set(3);
     }
 
     add(element) {
@@ -52,12 +62,23 @@ class ListLayout extends PIXI.Container {
     }
 }
 
-class InteractiveObject extends PIXI.Container {
+class GameObject extends PIXI.Container {
     constructor(texture) {
         super();
         this.sprite = new PIXI.Sprite.from(texture);
         this.sprite.anchor.set(0.5, 0.5);
         this.addChild(this.sprite);
+
+        G.gameObjects.push(this);
+    }
+
+    update() {
+    }
+}
+
+class InteractiveObject extends GameObject {
+    constructor(texture) {
+        super(texture);
 
         this.interactive = true;
         this.buttonMode = true;
@@ -112,25 +133,39 @@ class InteractiveObject extends PIXI.Container {
 class Chest extends InteractiveObject {
     constructor() {
         super(G.closed);
+        this.activationThreshold = 10;
+        this.resetAnimation = new ExpandAnimation(20, 1, 0, 1);
+        this.selectAnimation = new ExpandAnimation(30, 1, 1.4, 0.5);
+        this.chargeAnimation = new Oscillation(0.1, 0.4);
+    }
+
+    update(delta) {
+        if(this.select)
+            this.sprite.scale.set(this.selectAnimation.value());
+        if(this.active)
+            this.sprite.rotation = this.chargeAnimation.value();
+        else
+            this.sprite.rotation = 0;
     }
 
     onSelect() {
-        this.sprite.scale.set(1.1);
+        this.selectAnimation.restart(this.sprite.transform.scale.x, 1.2);
     }
 
     onDeselect() {
-        this.sprite.scale.set(1);
+        this.selectAnimation.restart(this.sprite.transform.scale.x, 1);
     }
 
     onActivate() {
-        this.sprite.texture = G.opened;
+        this.chargeAnimation.start();
     }
 
     onDeactivate() {
-
+        this.chargeAnimation.stop();
     }
 
     action() {
+        this.sprite.texture = G.opened;
         this.addChild(this.generateItem());
     }
 
