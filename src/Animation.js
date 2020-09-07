@@ -1,84 +1,91 @@
-class BaseAnimation {
+class Animation extends PIXI.Container{
     constructor() {
+        super();
         this.t = 0;
         this.active = 0;
+    }
+
+    update(delta) {
+        this.t += delta;
+        this.animate();
+        return this.active;
     }
 
     start() {
         this.t = 0;
-        this.active = 1;
-        this.value = this.calculate;
-        G.animations.push(this);
+        if(this.active != 1) {
+            G.animations.push(this);
+            this.active = 1;
+        }
     }
 
     stop() {
         this.active = 0;
-        const v = this.calculate();
-        this.value = () => {return v;};
-    }
-
-    calculate() {
-        return undefined;
-    }
-
-    update(delta) {
-        this.t += delta;
-        return this.active;
     }
 }
 
-class FiniteAnimation extends BaseAnimation {
-    constructor(lifetime) {
+class ScaleAnimation extends Animation {
+    constructor(parametric) {
         super();
-        this.lifetime = lifetime;
+        this.parametric = parametric;
     }
 
-    update(delta) {
-        this.t += delta;
-        if (this.t > this.lifetime) {
-            this.t = this.lifetime;
-            this.stop();
-        }
-        return this.active;
+    animate() {
+        this.transform.scale.set(this.parametric.calculate(this.t));
+        this.transform.updateLocalTransform();
     }
 }
 
-/**
- * Function that interpolates from 1 to @factor over a duration of @lifetime
- * using the function 
- */
-class ExpandAnimation extends FiniteAnimation {
-    constructor(lifetime, start, target, eccentricity) {
-        super(lifetime);
-        this.a = start
-        this.b = target;
-        this.eccentricity = eccentricity;
-        this.value = () => {return this.a;};
+class TransitionAnimation extends Animation {
+    constructor(dfa, animations, current) {
+        super();
+        this.transTime = 5;
+        this.prevTransform = PIXI.Transform.IDENTITY;
+        this.dfa = dfa;
+        this.animations = animations;
+        for (const state in animations) {
+            if (animations.hasOwnProperty(state)) {
+                dfa.addOnEnter(state, this.stateChange.bind(this));
+            }
+        }
+
+        this.stateChange(null, current);
+        
+        this.animate = this.animateIdle.bind(this);
     }
 
-    restart(start, target) {
-        this.t = 0;
-        this.a = start;
-        this.b = target;
-        if(this.active != 1) {
-            this.start();
+    stateChange(current, next) {
+        if(this.animations.hasOwnProperty(next)) {
+            this.prevTransform.setFromMatrix(this.localTransform);
+            this.currentAnimation = this.animations[next];
+            this.currentAnimation.start();
+            this.prevTime = this.t;
+            this.animate = this.animateInterpolate.bind(this);
         }
     }
 
-    calculate() {
-        return this.a + Math.pow(this.t/this.lifetime, this.eccentricity) * (this.b - this.a);
-    }
-}
+    animateInterpolate() {
+        const delta = this.t - this.prevTime;
+        if(delta >= this.transTime) {
+            this.animate = this.animateIdle.bind(this);
+            return this.animate();
+        }
 
-class Oscillation extends BaseAnimation {
-    constructor(speed, max) {
-        super();
-        this.max = max;
-        this.speed = speed;
-        this.value = () => {return 0};
+        const A = this.prevTransform;
+        this.currentAnimation.animate();
+        const B = this.currentAnimation.transform;
+        const d = delta / this.transTime;
+
+        this.position.set(this.lerp(d, A.position.x, B.position.x), this.lerp(d, A.position.y, B.position.y));
+        this.rotation = this.lerp(d, A.rotation, B.rotation);
+        this.scale.set(this.lerp(d, A.scale.x, B.scale.x), this.lerp(d, A.scale.y, B.scale.y));
     }
 
-    calculate() {
-        return Math.sin(this.speed * this.t) * this.max;
+    lerp(d, a, b) {
+        return (1-d) * a + d*b;
+    }
+
+    animateIdle() {
+        this.transform.setFromMatrix(this.currentAnimation.localTransform);
     }
 }

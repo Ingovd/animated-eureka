@@ -15,7 +15,7 @@ class Game extends PIXI.Application {
         this.stage.addChild(this.list);
 
         for (let i = 0; i < 3; i++) {
-            this.list.add(new Chest);      
+            this.list.add(new Chest());      
         }
         this.list.center();
         this.ticker.add(this.update.bind(this));
@@ -62,106 +62,16 @@ class ListLayout extends PIXI.Container {
     }
 }
 
-class GameObject extends PIXI.Container {
-    constructor(texture) {
-        super();
-        this.sprite = new PIXI.Sprite.from(texture);
-        this.sprite.anchor.set(0.5, 0.5);
-        this.addChild(this.sprite);
-
-        G.gameObjects.push(this);
-    }
-
-    update() {
-    }
-}
-
-class InteractiveObject extends GameObject {
-    constructor(texture) {
-        super(texture);
-
-        this.interactive = true;
-        this.buttonMode = true;
-        this.hitArea = this.sprite.getLocalBounds();
-        this.select = false;
-        this.active = false;
-    }
-
-    onSelect() {
-    }
-
-    onDeselect () {
-    }
-
-    onActivate () {
-    }
-
-    onDeactivate () {
-    }
-
-    mouseover() {
-        this.select = true;
-        this.onSelect();
-    }
-
-    mouseout() {
-        if (!this.active) {
-            this.onDeselect();
-        }
-    }
-
-    mousedown() {
-        this.active = true;
-        this.onActivate();
-    }
-
-    mouseup() {
-        if(this.active) {
-            this.active = false;
-            this.onDeactivate();
-        }
-    }
-
-    mouseupoutside() {
-        if(this.active) {
-            this.mouseout();
-            this.mouseup();
-        }
-    }
-}
-
 class Chest extends InteractiveObject {
     constructor() {
         super(G.closed);
-        this.activationThreshold = 10;
-        this.resetAnimation = new ExpandAnimation(20, 1, 0, 1);
-        this.selectAnimation = new ExpandAnimation(30, 1, 1.4, 0.5);
-        this.chargeAnimation = new Oscillation(0.1, 0.4);
-    }
 
-    update(delta) {
-        if(this.select)
-            this.sprite.scale.set(this.selectAnimation.value());
-        if(this.active)
-            this.sprite.rotation = this.chargeAnimation.value();
-        else
-            this.sprite.rotation = 0;
-    }
-
-    onSelect() {
-        this.selectAnimation.restart(this.sprite.transform.scale.x, 1.2);
-    }
-
-    onDeselect() {
-        this.selectAnimation.restart(this.sprite.transform.scale.x, 1);
-    }
-
-    onActivate() {
-        this.chargeAnimation.start();
-    }
-
-    onDeactivate() {
-        this.chargeAnimation.stop();
+        const idleOscillate = new ScaleAnimation(new Oscillation(0.1, 0.05, 1.05));
+        const hoverGrow = new ScaleAnimation(new Interpolate(40, 1, 1.5, 0.3));
+        const selectAnimations = {idle: idleOscillate, selected: hoverGrow};
+        const selectAnimation = new TransitionAnimation(this.dfa, selectAnimations, "idle");
+        this.addAnimation(selectAnimation);
+        selectAnimation.start();
     }
 
     action() {

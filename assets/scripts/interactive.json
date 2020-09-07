@@ -1,0 +1,7 @@
+{"states": ["idle", "selected", "active"],
+"transitions": [{"start": "idle", "target": "selected", "symbol": "select"},
+              {"start": "selected", "target": "idle", "symbol": "deselect"},
+              {"start": "selected", "target": "idle", "symbol": "release"},
+              {"start": "selected", "target": "active", "symbol": "activate"},
+              {"start": "active", "target": "selected", "symbol": "deactivate"},
+              {"start": "active", "target": "idle", "symbol": "release"}]}
