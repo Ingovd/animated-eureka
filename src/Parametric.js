@@ -11,6 +11,8 @@ class Interpolate {
     }
 
     calculate(t) {
+        if(this.duration <= t)
+            return this.b;
         return this.a + Math.pow(t/this.duration, this.eccentricity) * (this.b - this.a);
     }
 }

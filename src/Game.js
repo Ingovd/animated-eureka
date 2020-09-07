@@ -17,6 +17,18 @@ class Game extends PIXI.Application {
         for (let i = 0; i < 3; i++) {
             this.list.add(new Chest());      
         }
+
+        var uniforms = {};
+        uniforms.value = {
+            type:"f",
+            value:0
+        }
+        const shader = new PIXI.Filter('', testShader, uniforms)
+        this.star = PIXI.Sprite.from("assets/sprites/item_star.png");
+        this.list.add(this.star);
+        this.star.filters = [shader];
+
+
         this.list.center();
         this.ticker.add(this.update.bind(this));
         this.resizeRenderer();
@@ -66,12 +78,25 @@ class Chest extends InteractiveObject {
     constructor() {
         super(G.closed);
 
-        const idleOscillate = new ScaleAnimation(new Oscillation(0.1, 0.05, 1.05));
-        const hoverGrow = new ScaleAnimation(new Interpolate(40, 1, 1.5, 0.3));
-        const selectAnimations = {idle: idleOscillate, selected: hoverGrow};
-        const selectAnimation = new TransitionAnimation(this.dfa, selectAnimations, "idle");
+        const idleOscillate = new ScaleAnimation(new Oscillation(0.05, 0.05, 1.05));
+        const hoverGrow = new ScaleAnimation(new Interpolate(30, 1, 1.5, .2));
+        const selectAnimation = new TransitionAnimation(this.dfa, {idle: idleOscillate, selected: hoverGrow}, "idle");
         this.addAnimation(selectAnimation);
         selectAnimation.start();
+
+        const activeWiggle = new RotationAnimation(new Oscillation(0.5, 0.1, 0));
+        const constant = new RotationAnimation(new Interpolate(100, 0, Math.PI * 2, 1));
+        const activeAnimation = new TransitionAnimation(this.dfa, {selected: constant, active: activeWiggle}, "selected");
+        this.addAnimation(activeAnimation);
+        activeAnimation.start();
+
+        var self = this;
+        this.dfa.addOnEnter("active", function() {
+            self.timer = setTimeout(self.action.bind(self), 1000);
+        });
+        this.dfa.addOnExit("active", function() {
+            clearTimeout(self.timer);
+        });
     }
 
     action() {
@@ -93,20 +118,5 @@ class Chest extends InteractiveObject {
 class Item extends InteractiveObject {
     constructor(texture) {
         super(texture);
-        G.animations.push(this);
-    }
-
-    animate(delta) {
-        console.log(this.active)
-        if(!this.active)
-            this.position.y -= delta;
-    }
-
-    onSelect() {
-        this.sprite.scale.set(1.1);
-    }
-
-    onDeselect() {
-        this.sprite.scale.set(1);
     }
 }

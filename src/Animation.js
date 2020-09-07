@@ -8,6 +8,7 @@ class Animation extends PIXI.Container{
     update(delta) {
         this.t += delta;
         this.animate();
+        this.transform.updateLocalTransform();
         return this.active;
     }
 
@@ -24,6 +25,17 @@ class Animation extends PIXI.Container{
     }
 }
 
+class RotationAnimation extends Animation {
+    constructor(parametric) {
+        super();
+        this.parametric = parametric;
+    }
+
+    animate() {
+        this.transform.rotation = this.parametric.calculate(this.t);
+    }
+}
+
 class ScaleAnimation extends Animation {
     constructor(parametric) {
         super();
@@ -32,14 +44,13 @@ class ScaleAnimation extends Animation {
 
     animate() {
         this.transform.scale.set(this.parametric.calculate(this.t));
-        this.transform.updateLocalTransform();
     }
 }
 
 class TransitionAnimation extends Animation {
     constructor(dfa, animations, current) {
         super();
-        this.transTime = 5;
+        this.transTime = 10;
         this.prevTransform = PIXI.Transform.IDENTITY;
         this.dfa = dfa;
         this.animations = animations;
