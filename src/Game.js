@@ -87,12 +87,13 @@ class ListLayout extends PIXI.Container {
 
 class Sphere extends InteractiveObject {
     constructor() {
+        const size = 500;
         const geometry = new PIXI.Geometry()
         .addAttribute('aVertexPosition', // the attribute name
             [0, 0, // x, y
-                200, 0, // x, y
-                200, 200,
-                0, 200], // x, y
+                size, 0, // x, y
+                size, size,
+                0, size], // x, y
             2) // the size of the attribute
         .addAttribute('aUvs', // the attribute name
             [0, 0, // u, v
@@ -102,14 +103,14 @@ class Sphere extends InteractiveObject {
             2) // the size of the attribute
         .addIndex([0, 1, 2, 0, 2, 3]);
         const uniforms = {uValue: 0.0, uX: 0.0, uY: 0.0};
-        const shader = new PIXI.Filter('', testShader, uniforms)
-        const gridTexture = PIXI.RenderTexture.create(200, 200);
+        const shader = new PIXI.Shader.from(vertexShader, testShader, uniforms);
+        const gridTexture = PIXI.RenderTexture.create(size, size);
         const gridQuad = new PIXI.Mesh(geometry, shader);
+        gridQuad.pivot.set(size/2);
         super(gridQuad);
         
         this.uniforms = uniforms;
         this.shader = shader;
-
 
         this.dfa.addOnEnter("idle", this.off.bind(this));
         this.dfa.addOnState("selected", this.point.bind(this));
@@ -119,11 +120,9 @@ class Sphere extends InteractiveObject {
         this.transform.updateLocalTransform();
         const bounds = this.getLocalBounds();
         const worldPos = new PIXI.Point(this.mouse.x, this.mouse.y);
-        console.log(worldPos)
         const localPos = this.toLocal(worldPos);
-        localPos.x = localPos.x/bounds.width;// + 0.5;
-        localPos.y = localPos.y/bounds.width;// + 0.5;
-        console.log(localPos);
+        localPos.x = localPos.x/bounds.width + 0.5;
+        localPos.y = localPos.y/bounds.width + 0.5;
         this.uniforms.uValue = 1.0;
         this.uniforms.uX = localPos.x;
         this.uniforms.uY = localPos.y;
@@ -139,7 +138,6 @@ class Chest extends InteractiveObject {
         const sprite = new PIXI.Sprite.from(G.closed);
         sprite.anchor.set(0.5);
         super(sprite);
-        this.scale.set(3);
 
         const idleOscillate = new ScaleAnimation(new Oscillation(0.05, 0.05, 1.05));
         const hoverGrow = new ScaleAnimation(new Interpolate(30, 1, 2, .2));
