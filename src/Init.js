@@ -18,4 +18,4 @@ var G = new Game({
 });
 window.addEventListener('resize', G.resizeRenderer.bind(G));
 
-document.addEventListener("DOMContentLoaded", G.init.bind(G), false);
+// document.addEventListener("DOMContentLoaded", G.init.bind(G), false);

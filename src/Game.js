@@ -1,33 +1,43 @@
 class Game extends PIXI.Application {
     constructor(options) {
         super(options);
-        this.closed = new PIXI.Texture.from("assets/sprites/chest_closed.png");
-        this.opened = new PIXI.Texture.from("assets/sprites/chest_open.png");
-        this.cloud = new PIXI.Texture.from("assets/sprites/item_cloud.png");
-        this.leaf = new PIXI.Texture.from("assets/sprites/item_green_leaf.png");
-        this.suit = new PIXI.Texture.from("assets/sprites/item_tanooki_suit.png");
         this.gameObjects = [];
         this.animations = [];
+        this.load();
+    }
+
+    load() {
+        this.loader.add('closed', "assets/sprites/chest_closed.png")
+                   .add('opened', "assets/sprites/chest_open.png")
+                   .add('cloud', "assets/sprites/item_cloud.png")
+                   .add('leaf', "assets/sprites/item_green_leaf.png")
+                   .add('suit', "assets/sprites/item_tanooki_suit.png")
+                   .add('star', "assets/sprites/item_star.png")
+                   .add('large', "assets/sprites/large.png");
+        this.loader.load((loader, resources) => {
+            G.closed = resources.closed.texture;
+            G.opened = resources.opened.texture;
+            G.cloud = resources.cloud.texture;
+            G.leaf = resources.leaf.texture;
+            G.suit = resources.suit.texture;
+            G.star = resources.star.texture;
+            G.large = resources.large.texture;
+        });
+        this.loader.onComplete.add(this.init.bind(this));
     }
 
     init() {
         this.list = new ListLayout(100);
         this.stage.addChild(this.list);
 
-        for (let i = 0; i < 3; i++) {
-            this.list.add(new Chest());      
-        }
+        // for (let i = 0; i < 3; i++) {
+        //     this.list.add(new Chest());      
+        // }
 
-        var uniforms = {};
-        uniforms.value = {
-            type:"f",
-            value:0
-        }
-        const shader = new PIXI.Filter('', testShader, uniforms)
-        this.star = PIXI.Sprite.from("assets/sprites/item_star.png");
-        this.list.add(this.star);
-        this.star.filters = [shader];
 
+        this.test = new Sphere();
+        this.list.add(this.test);
+        // this.stage.addChild(this.test);
 
         this.list.center();
         this.ticker.add(this.update.bind(this));
@@ -60,7 +70,6 @@ class ListLayout extends PIXI.Container {
     constructor(space) {
         super();
         this.space = space;
-        this.transform.scale.set(3);
     }
 
     add(element) {
@@ -71,32 +80,83 @@ class ListLayout extends PIXI.Container {
     center() {
         const rect = this.getLocalBounds();
         this.pivot.set(rect.width/2, rect.height/2);
+        this.position.set(window.innerWidth/2, window.innerHeight/2);
+        this.transform.updateLocalTransform();
+    }
+}
+
+class Sphere extends InteractiveObject {
+    constructor() {
+        const geometry = new PIXI.Geometry()
+        .addAttribute('aVertexPosition', // the attribute name
+            [0, 0, // x, y
+                200, 0, // x, y
+                200, 200,
+                0, 200], // x, y
+            2) // the size of the attribute
+        .addAttribute('aUvs', // the attribute name
+            [0, 0, // u, v
+                1, 0, // u, v
+                1, 1,
+                0, 1], // u, v
+            2) // the size of the attribute
+        .addIndex([0, 1, 2, 0, 2, 3]);
+        const uniforms = {uValue: 0.0, uX: 0.0, uY: 0.0};
+        const shader = new PIXI.Filter('', testShader, uniforms)
+        const gridTexture = PIXI.RenderTexture.create(200, 200);
+        const gridQuad = new PIXI.Mesh(geometry, shader);
+        super(gridQuad);
+        
+        this.uniforms = uniforms;
+        this.shader = shader;
+
+
+        this.dfa.addOnEnter("idle", this.off.bind(this));
+        this.dfa.addOnState("selected", this.point.bind(this));
+    }
+
+    point() {
+        this.transform.updateLocalTransform();
+        const bounds = this.getLocalBounds();
+        const worldPos = new PIXI.Point(this.mouse.x, this.mouse.y);
+        console.log(worldPos)
+        const localPos = this.toLocal(worldPos);
+        localPos.x = localPos.x/bounds.width;// + 0.5;
+        localPos.y = localPos.y/bounds.width;// + 0.5;
+        console.log(localPos);
+        this.uniforms.uValue = 1.0;
+        this.uniforms.uX = localPos.x;
+        this.uniforms.uY = localPos.y;
+    }
+
+    off() {
+        this.uniforms.uValue = 0.5;
     }
 }
 
 class Chest extends InteractiveObject {
     constructor() {
-        super(G.closed);
+        const sprite = new PIXI.Sprite.from(G.closed);
+        sprite.anchor.set(0.5);
+        super(sprite);
+        this.scale.set(3);
 
         const idleOscillate = new ScaleAnimation(new Oscillation(0.05, 0.05, 1.05));
-        const hoverGrow = new ScaleAnimation(new Interpolate(30, 1, 1.5, .2));
-        const selectAnimation = new TransitionAnimation(this.dfa, {idle: idleOscillate, selected: hoverGrow}, "idle");
+        const hoverGrow = new ScaleAnimation(new Interpolate(30, 1, 2, .2));
+        const selectAnimation = new TransitionAnimation(this.dfa, {idle: idleOscillate, selected: hoverGrow, active: hoverGrow});
         this.addAnimation(selectAnimation);
-        selectAnimation.start();
 
         const activeWiggle = new RotationAnimation(new Oscillation(0.5, 0.1, 0));
-        const constant = new RotationAnimation(new Interpolate(100, 0, Math.PI * 2, 1));
-        const activeAnimation = new TransitionAnimation(this.dfa, {selected: constant, active: activeWiggle}, "selected");
+        const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
         this.addAnimation(activeAnimation);
-        activeAnimation.start();
 
-        var self = this;
-        this.dfa.addOnEnter("active", function() {
-            self.timer = setTimeout(self.action.bind(self), 1000);
-        });
-        this.dfa.addOnExit("active", function() {
-            clearTimeout(self.timer);
-        });
+        // var self = this;
+        // this.dfa.addOnEnter("active", function() {
+        //     self.timer = setTimeout(self.action.bind(self), 1000);
+        // });
+        // this.dfa.addOnExit("active", function() {
+        //     clearTimeout(self.timer);
+        // });
     }
 
     action() {

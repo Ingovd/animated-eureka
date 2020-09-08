@@ -9,18 +9,17 @@ const interactive = {
 };
 
 class GameObject extends PIXI.Container {
-    constructor(texture) {
+    constructor(displayObject) {
         super();
-        this.sprite = new PIXI.Sprite.from(texture);
-        this.sprite.anchor.set(0.5, 0.5);
-        this.addChild(this.sprite);
+        this.displayObject = displayObject;
+        this.addChild(displayObject);
 
         G.gameObjects.push(this);
     }
 
     addAnimation(animation) {
-        this.sprite.parent.addChild(animation);
-        animation.addChild(this.sprite);
+        this.displayObject.parent.addChild(animation);
+        animation.addChild(this.displayObject);
     }
 
     update() {
@@ -33,28 +32,42 @@ class InteractiveObject extends GameObject{
         super(texture);
         this.dfa = new State("idle", interactive.states, interactive.transitions);
 
+        this.mouse = null;
         this.interactive = true;
         this.buttonMode = true;
-        this.hitArea = this.sprite.getLocalBounds();
+        this.hitArea = this.getLocalBounds();
     }
 
-    mouseover() {
+    update() {
+        this.dfa.runCurrentState();
+    }
+
+    mousemove(event) {
+        this.mouse = event.data.originalEvent;
+    }
+
+    mouseover(event) {
+        this.mouse = event.data.originalEvent;
         this.dfa.transition("select");
     }
 
-    mouseout() {
+    mouseout(event) {
+        this.mouse = event.data.originalEvent;
         this.dfa.transition("deselect");
     }
 
-    mousedown() {
+    mousedown(event) {
+        this.mouse = event.data.originalEvent;
         this.dfa.transition("activate");
     }
 
-    mouseup() {
+    mouseup(event) {
+        this.mouse = event.data.originalEvent;
         this.dfa.transition("deactivate");
     }
 
-    mouseupoutside() {
+    mouseupoutside(event) {
+        this.mouse = event.data.originalEvent;
         this.dfa.transition("release");
     }
 }

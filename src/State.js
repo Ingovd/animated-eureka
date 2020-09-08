@@ -3,11 +3,21 @@ class State {
         this.current = initial;
         this.states = {};
         states.forEach(state => {
-            this.states[state] = {onEnter: [], onExit: [], transitions: {}};
+            this.states[state] = {onState: [], onEnter: [], onExit: [], transitions: {}};
         });
         transitions.forEach(transition => {
             this.states[transition.start].transitions[transition.symbol] = transition.target;
         });
+    }
+
+    runCurrentState() {
+        this.states[this.current].onState.forEach(callback => {
+            callback();
+        });
+    }
+
+    inState(state) {
+        return this.current == state;
     }
 
     transition(symbol) {
@@ -20,6 +30,14 @@ class State {
         this.states[next].onEnter.forEach(callback => {callback(this.current, next)});
 
         this.current = next;
+    }
+
+    addOnState(state, callback) {
+        this.states[state].onState.push(callback);
+    }
+
+    removeOnState(state, callback) {
+        this.states[state].onState = this.states[state].onState.filter(item => item !== callback);
     }
 
     addOnEnter(state, callback) {

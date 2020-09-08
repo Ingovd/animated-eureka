@@ -3,13 +3,22 @@ class Animation extends PIXI.Container{
         super();
         this.t = 0;
         this.active = 0;
+        this.playing = 0;
     }
 
     update(delta) {
-        this.t += delta;
+        this.t += delta * this.playing;
         this.animate();
         this.transform.updateLocalTransform();
         return this.active;
+    }
+
+    play() {
+        this.playing = 1;
+    }
+
+    pause() {
+        this.playing = 0;
     }
 
     start() {
@@ -18,6 +27,7 @@ class Animation extends PIXI.Container{
             G.animations.push(this);
             this.active = 1;
         }
+        this.play();
     }
 
     stop() {
@@ -48,48 +58,69 @@ class ScaleAnimation extends Animation {
 }
 
 class TransitionAnimation extends Animation {
-    constructor(dfa, animations, current) {
+    constructor(dfa, animations) {
         super();
-        this.transTime = 10;
-        this.prevTransform = PIXI.Transform.IDENTITY;
         this.dfa = dfa;
         this.animations = animations;
+        this.transTime = 10;
+        
+        this.prevTransform = PIXI.Transform.IDENTITY;
         for (const state in animations) {
-            if (animations.hasOwnProperty(state)) {
-                dfa.addOnEnter(state, this.stateChange.bind(this));
-            }
+            dfa.addOnEnter(state, this.enter.bind(this));
+            dfa.addOnExit(state, this.exit.bind(this));
         }
 
-        this.stateChange(null, current);
-        
-        this.animate = this.animateIdle.bind(this);
+        this.defaultAnimation = new Animation();
+        this.defaultAnimation.start = () => {};
+        this.defaultAnimation.animate = () => {};
+        this.currentAnimation = this.defaultAnimation;
+        this.enter(null, dfa.current);
     }
 
-    stateChange(current, next) {
+    exit(current, next) {
+        if(this.animations[current] === this.animations[next])
+            return;
+        if(this.animations.hasOwnProperty(current)) {
+            this.currentAnimation.stop();
+            this.currentAnimation = this.defaultAnimation;
+        }
+    }
+
+    enter(current, next) {
+        if(this.animations[current] === this.animations[next])
+            return;
         if(this.animations.hasOwnProperty(next)) {
-            this.prevTransform.setFromMatrix(this.localTransform);
             this.currentAnimation = this.animations[next];
             this.currentAnimation.start();
-            this.prevTime = this.t;
-            this.animate = this.animateInterpolate.bind(this);
         }
+        this.start();
+    }
+
+    start() {
+        super.start();
+        this.prevTransform.setFromMatrix(this.localTransform);
+        this.animate = this.animateInterpolate.bind(this);
     }
 
     animateInterpolate() {
-        const delta = this.t - this.prevTime;
-        if(delta >= this.transTime) {
+        if(this.t >= this.transTime) {
             this.animate = this.animateIdle.bind(this);
             return this.animate();
         }
 
         const A = this.prevTransform;
-        this.currentAnimation.animate();
         const B = this.currentAnimation.transform;
-        const d = delta / this.transTime;
+        const d = this.t / this.transTime;
 
         this.position.set(this.lerp(d, A.position.x, B.position.x), this.lerp(d, A.position.y, B.position.y));
         this.rotation = this.lerp(d, A.rotation, B.rotation);
         this.scale.set(this.lerp(d, A.scale.x, B.scale.x), this.lerp(d, A.scale.y, B.scale.y));
+        // console.log("prev")
+        // console.log(A.scale.x);
+        // console.log("next")
+        // console.log(B.scale.x);
+        // console.log("combine")
+        // console.log(this.scale.x);
     }
 
     lerp(d, a, b) {
