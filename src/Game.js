@@ -13,7 +13,12 @@ class Game extends PIXI.Application {
                    .add('leaf', "assets/sprites/item_green_leaf.png")
                    .add('suit', "assets/sprites/item_tanooki_suit.png")
                    .add('star', "assets/sprites/item_star.png")
-                   .add('large', "assets/sprites/large.png");
+                   .add('eureka', "assets/neon/eureka.png")
+                   .add('wall_color', "assets/wall/wall_baseColor.jpg")
+                   .add('wall_normal', "assets/wall/wall_normal.jpg")
+                   .add('wall_roughness', "assets/wall/wall_roughness.jpg")
+                   .add('wall_ambient', "assets/wall/wall_ambientOcclusion.jpg")
+                   .add('wall_height', "assets/wall/wall_height.png");
         this.loader.load((loader, resources) => {
             G.closed = resources.closed.texture;
             G.opened = resources.opened.texture;
@@ -21,14 +26,31 @@ class Game extends PIXI.Application {
             G.leaf = resources.leaf.texture;
             G.suit = resources.suit.texture;
             G.star = resources.star.texture;
-            G.large = resources.large.texture;
+
+            G.eureka = resources.eureka.texture;
+
+            G.wall_color = resources.wall_color.texture;
+            G.wall_color.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+            G.wall_normal = resources.wall_normal.texture;
+            G.wall_normal.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+            G.wall_roughness = resources.wall_roughness.texture;
+            G.wall_roughness.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+            G.wall_ambient = resources.wall_ambient.texture;
+            G.wall_ambient.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+            G.wall_height = resources.wall_height.texture;
+            G.wall_height.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
         });
         this.loader.onComplete.add(this.init.bind(this));
     }
 
     init() {
+        this.background = new Wall(window.innerWidth, window.innerHeight);
+        this.stage.addChild(this.background);
+
         this.list = new ListLayout(100);
         this.stage.addChild(this.list);
+
+        
 
         // for (let i = 0; i < 3; i++) {
         //     this.list.add(new Chest());      
@@ -36,8 +58,9 @@ class Game extends PIXI.Application {
 
 
         this.test = new Sphere();
-        this.list.add(this.test);
-        // this.stage.addChild(this.test);
+        // this.list.add(this.test);
+
+        this.list.add(new Light());
 
         this.list.center();
         this.ticker.add(this.update.bind(this));
@@ -56,6 +79,11 @@ class Game extends PIXI.Application {
         this.gameObjects.forEach(element => {
             element.update(delta);
         });
+
+        this.background.update();
+        this.list.filters = [new PIXI.filters.BlurFilter(9,2,0.25)];
+        this.renderer.render(this.list, this.background.renderTex);
+        this.list.filters = [];
     }
 
     resizeRenderer(){
@@ -85,6 +113,47 @@ class ListLayout extends PIXI.Container {
     }
 }
 
+class Wall extends PIXI.Container {
+    constructor(width, height) {
+        super();
+        this.width = width;
+        this.height = height;
+        const dim = 2.0 / Math.min(width, height);
+        const geometry = new PIXI.Geometry()
+        .addAttribute('aVertexPosition', // the attribute name
+            [0, 0, // x, y
+                width, 0, // x, y
+                width, height,
+                0, height], // x, y
+            2) // the size of the attribute
+        .addAttribute('aUvs', // the attribute name
+            [0, 0, // u, v
+                width*dim, 0, // u, v
+                width*dim, height*dim,
+                0, height*dim], // u, v
+            2) // the size of the attribute
+        .addIndex([0, 1, 2, 0, 2, 3]);
+
+        this.renderTex = PIXI.RenderTexture.create(width, height);
+        this.uniforms = {uTexture: G.wall_color,
+                          uRoughness: G.wall_roughness,
+                          uNormal: G.wall_normal,
+                          uAmbient: G.wall_ambient,
+                          uHeight: G.wall_height,
+                          uLight: this.renderTex,
+                          uX: 0.0, uY: 0.0, uW: width, uH: height};
+        const shader = new PIXI.Shader.from(vertexShader, fragmentNormal, this.uniforms);
+        const wallQuad = new PIXI.Mesh(geometry, shader);
+        this.addChild(wallQuad);        
+    }
+
+    update() {
+        this.uniforms.uValue = 1.0;
+        this.uniforms.uX = G.renderer.plugins.interaction.mouse.global.x;
+        this.uniforms.uY = G.renderer.plugins.interaction.mouse.global.y;
+    }
+}
+
 class Sphere extends InteractiveObject {
     constructor() {
         const size = 500;
@@ -104,7 +173,6 @@ class Sphere extends InteractiveObject {
         .addIndex([0, 1, 2, 0, 2, 3]);
         const uniforms = {uValue: 0.0, uX: 0.0, uY: 0.0};
         const shader = new PIXI.Shader.from(vertexShader, testShader, uniforms);
-        const gridTexture = PIXI.RenderTexture.create(size, size);
         const gridQuad = new PIXI.Mesh(geometry, shader);
         gridQuad.pivot.set(size/2);
         super(gridQuad);
@@ -130,6 +198,21 @@ class Sphere extends InteractiveObject {
 
     off() {
         this.uniforms.uValue = 0.5;
+    }
+}
+
+class Light extends InteractiveObject {
+    constructor() {
+        super(new PIXI.Sprite.from(G.eureka));
+        this.uniforms = {delta: 0};
+        const filter = new PIXI.Filter(spriteVertex, spriteFragment, this.uniforms);
+        this.displayObject.filters = [filter];
+        this.t = 0;
+    }
+
+    update() {
+        this.t += 0.1
+        this.uniforms.delta = Math.sin(this.t);
     }
 }
 

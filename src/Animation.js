@@ -115,12 +115,6 @@ class TransitionAnimation extends Animation {
         this.position.set(this.lerp(d, A.position.x, B.position.x), this.lerp(d, A.position.y, B.position.y));
         this.rotation = this.lerp(d, A.rotation, B.rotation);
         this.scale.set(this.lerp(d, A.scale.x, B.scale.x), this.lerp(d, A.scale.y, B.scale.y));
-        // console.log("prev")
-        // console.log(A.scale.x);
-        // console.log("next")
-        // console.log(B.scale.x);
-        // console.log("combine")
-        // console.log(this.scale.x);
     }
 
     lerp(d, a, b) {
