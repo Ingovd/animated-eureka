@@ -31,6 +31,21 @@ const spriteFragment = `
 }`;
 
 
+const fragmentVoronoi = `
+    varying vec2 vTextureCoord;
+    uniform sampler2D uSampler;
+
+    // uniform sampler2D uLights;
+    uniform vec2 dim;
+
+    void main(void) {
+        vec2 nn = texture2D(uSampler, vTextureCoord).rg;
+        float d = distance(vTextureCoord * dim, nn * dim) / max(dim.x, dim.y);
+        gl_FragColor = vec4(vec3(d), 1.0);
+        gl_FragColor.rg = nn;
+    }
+`;
+
 const vertexShader = `
     precision mediump float;
     attribute vec2 aVertexPosition;
@@ -78,16 +93,54 @@ const testShader = `
         }
     }`;
 
-const fragmentNeon = `
+const jfaFragment =`
     precision mediump float;
 
     varying vec2 vVertexPosition;
     varying vec2 vUvs;
 
-    uniform sampler2D uSampler;//The image data
-    main {
+    uniform sampler2D uTexIn;
 
-    }`;
+    uniform float step;
+    uniform vec2 dim;
+
+    vec4 closest(in vec4 p, in vec4 q) {
+        float d_p = distance(p.xy * dim, vVertexPosition);
+        float d_q = distance(q.xy * dim, vVertexPosition);
+        if(p.a == 0.0) {
+            d_p = dim.x + dim.y;
+        }
+        if(q.a == 0.0) {
+            d_q = dim.x + dim.y;
+        }
+        if(d_p < d_q) {
+            return p;
+        } else {
+            return q;
+        }
+    }
+
+    void main() {
+        if(step < 0.1) {
+            vec4 light = texture2D(uTexIn, vVertexPosition / dim);
+            if(light.r + light.g + light.b > 0.0) {
+                gl_FragColor = vec4(vVertexPosition / dim, 0.0, 1.0);
+            } else {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+            }
+            return;
+        }
+
+        vec4 current = texture2D(uTexIn, vVertexPosition / dim);
+        vec2 offset = vec2(0.0, 0.0);
+        for(float i = 0.0; i < 9.0; i++) {
+            offset = vec2(mod(i, 3.0) - 1.0, floor(i/3.0) - 1.0) * step;
+            current = closest(current, texture2D(uTexIn, (vVertexPosition + offset) / dim));
+        }
+        gl_FragColor = current;
+    }
+`;
+
 
 const fragmentNormal = `
     precision mediump float;
@@ -101,16 +154,41 @@ const fragmentNormal = `
     uniform sampler2D uAmbient;
     uniform sampler2D uHeight;
     uniform sampler2D uLight;
+    uniform sampler2D uLightDir;
+    uniform sampler2D uNN;
     
     uniform float uX;
     uniform float uY;
-    uniform float uW;
-    uniform float uH;
+    uniform vec2 dim;
+
+    float max3(in vec3 v) {
+        return max(max(v.x, v.y), v.z);
+    }
+
+    vec2 ccjg(in vec2 c) {
+        return vec2(c.x, -c.y);
+    }
+
+    vec2 cmul(in vec2 a, in vec2 b) {
+        return vec2(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
+    }
+
+    vec2 rotate(vec2 v, float a) {
+        float s = sin(a);
+        float c = cos(a);
+        mat2 m = mat2(c, -s, s, c);
+        return m * v;
+    }
 
     void main(void) {
-        vec2 uv = vUvs;//fract(vUvs);
+        vec2 uv = vUvs;
+        vec2 nn = texture2D(uNN, vVertexPosition/dim).xy;
+
         vec3 vertexPos = vec3(vVertexPosition, 0.0);
-        vec3 lightPos = vec3(uX, uY, 500.0);
+        float influence = pow(max(1.0 - distance(vVertexPosition, nn * dim) / 500.0, 0.0), 2.0);
+        // influence = 1.0;
+
+        vec3 lightPos = vec3(texture2D(uLightDir, vVertexPosition/dim).xy * dim, 150.0 + 150.0 * (1.0 - influence));
         float shininess = (texture2D(uRoughness, uv).r) * 100.0;
 
         vec3 L = normalize(lightPos - vertexPos);
@@ -119,21 +197,86 @@ const fragmentNormal = `
         float specular = 0.0;
         if(lambertian > 0.0) {
             vec3 R = reflect(-L, N);      // Reflected light vector
-            vec3 V = normalize(vec3(uW*0.5, uH*0.5, 1000000000.0)-vertexPos); // Vector to viewer
-            // vec3 V = vec3(0.0, 0.0, -1.0);
-            // Compute the specular term
+            vec3 V = normalize(vec3(dim*0.5, 1000000000.0)-vertexPos); // Vector to viewer
             float specAngle = max(dot(R, V), 0.0);
             specular = pow(specAngle, shininess);
         }
-        gl_FragColor = vec4((0.6 * lambertian * texture2D(uTexture,uv).rgb +
-                            0.1 * specular * vec3(1.0, 1.0, 1.0))
-                            * pow(texture2D(uAmbient, uv).r, 0.5), 1.0);
+        vec3 lightColor = texture2D(uLight, vVertexPosition/dim).rgb;
+        lightColor /= max3(lightColor);
+        // lightColor = vec3(0.0, 1.0, 1.0);
+        lightColor *= influence;
+        // lightColor = vec3(1.0);
+        gl_FragColor = vec4(mix(lambertian * mix(texture2D(uTexture,uv).rgb, lightColor, 0.2),
+                                specular * lightColor, 0.2)
+                            * pow(texture2D(uAmbient, uv).r, 0.5) * influence, 1.0);
         
-        gl_FragColor.rgb += texture2D(uLight, vVertexPosition / vec2(uW, uH)).rgb;
-        // gl_FragColor.rgb = specular * vec3(1.0, 1.0, 1.0);
-        // gl_FragColor.rgb = texture2D(uHeight, uv).rgb;
-        // if(distance(vVertexPosition, vec2(uX, uY)) < 100.0) {
-        //     gl_FragColor.r = uv.x;
-        //     gl_FragColor.g = uv.y;
-        // }
+        // gl_FragColor.rg =  texture2D(uNN, vVertexPosition/dim).xy;
     }`;
+
+
+    const old = `
+    float sampleLum(vec2 dir, float radius) {
+        vec4 c = texture2D(uLight, (vVertexPosition + dir*radius) / vec2(uW, uH));
+        return c.r + c.b + c.g;
+        return (c.r + c.r + c.r + c.b + c.g + c.g + c.g + c.g);
+    }
+    
+    vec2 lightDir() {
+        float r = 20.0;
+        float sqrt3over2 = pow(3.0, 0.5)/2.0;
+        vec2 b = vec2(1.0, 0.0);
+        vec2 c = vec2(-0.5, sqrt3over2);
+        vec2 a = vec2(-0.5, -sqrt3over2);
+        float v1 = sampleLum(a, r);
+        float v2 = sampleLum(b, r);
+        float v3 = sampleLum(c, r);
+    
+        vec2 p = a;
+        vec2 q = b;
+        if(v1 < min(v2, v3)) {
+            p = b;
+            q = c;
+        }
+        if(v2 < min(v1, v3)) {
+            p = a;
+            q = c;
+        }
+    
+        vec2 s;
+        float v_s;
+        float v_p = sampleLum(p, r);
+        float v_q = sampleLum(q, r);
+        for(int i = 0; i < 16; i++) {
+            s = normalize(p + q);
+            v_s = sampleLum(s, r);
+            v_p = sampleLum(p, r);
+            v_q = sampleLum(q, r);
+            if(v_p < v_s && v_q < v_s) {
+                p = normalize(mix(s, p, v_p/v_s));
+                q = normalize(mix(s, q, v_q/v_s));
+                continue;
+            }
+            if(v_p < v_s) {
+                p = normalize(mix(s, p, v_p/v_s));
+                continue;
+            }
+            if(v_q < v_s) {
+                q = normalize(mix(s, q, v_q/v_s));
+                continue;
+            }
+            vec2 ps = normalize(mix(p, s, v_s/v_p));
+            vec2 qs = normalize(mix(q, s, v_s/v_q));
+            p = cmul(ccjg(cmul(p, -ps)), ps);
+            p = cmul(ccjg(cmul(q, -qs)), qs);
+            r *= 2.0;
+            continue;
+            
+            if(sampleLum(p, r) < sampleLum(q, r)) {
+                p = s;
+            } else {
+                q = s;
+            }
+        }
+        return s;
+    }
+    `;

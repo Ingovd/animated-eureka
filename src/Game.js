@@ -13,7 +13,7 @@ class Game extends PIXI.Application {
                    .add('leaf', "assets/sprites/item_green_leaf.png")
                    .add('suit', "assets/sprites/item_tanooki_suit.png")
                    .add('star', "assets/sprites/item_star.png")
-                   .add('eureka', "assets/neon/eureka.png")
+                   .add('eureka', "assets/neon/eureka_no_aa.png")
                    .add('wall_color', "assets/wall/wall_baseColor.jpg")
                    .add('wall_normal', "assets/wall/wall_normal.jpg")
                    .add('wall_roughness', "assets/wall/wall_roughness.jpg")
@@ -47,7 +47,7 @@ class Game extends PIXI.Application {
         this.background = new Wall(window.innerWidth, window.innerHeight);
         this.stage.addChild(this.background);
 
-        this.list = new ListLayout(100);
+        this.list = new ListLayout(400);
         this.stage.addChild(this.list);
 
         
@@ -60,7 +60,8 @@ class Game extends PIXI.Application {
         this.test = new Sphere();
         // this.list.add(this.test);
 
-        this.list.add(new Light());
+        this.list.add(new Light(0));
+        this.list.add(new Light(Math.PI));
 
         this.list.center();
         this.ticker.add(this.update.bind(this));
@@ -81,7 +82,33 @@ class Game extends PIXI.Application {
         });
 
         this.background.update();
-        this.list.filters = [new PIXI.filters.BlurFilter(9,2,0.25)];
+
+        this.renderer.render(this.list, this.background.renderTex);
+        this.background.jfaUniforms.uTexIn = this.background.renderTex;
+        this.background.jfaUniforms.step = 0.0;
+        this.renderer.render(this.background.lightPlane, this.background.bufferA);
+        let inBuffer = this.background.bufferA;
+        let outBuffer = this.background.bufferB;
+        for(let i = 10; i >= 0; i--) {
+            this.background.jfaUniforms.uTexIn = inBuffer;
+            this.background.jfaUniforms.step = Math.pow(2, i);
+            this.renderer.render(this.background.lightPlane, outBuffer);
+            [inBuffer, outBuffer] = [outBuffer, inBuffer];
+        }
+        this.background.voronoiSprite.texture = inBuffer;
+        this.background.uniforms.uNN = inBuffer;
+        this.background.voronoiSprite.filters.push(new PIXI.filters.BlurFilter(10,2,1,15));
+        this.renderer.render(this.background.voronoiSprite, outBuffer);
+        this.background.voronoiSprite.filters.pop();
+        this.background.uniforms.uLightDir = outBuffer;
+
+        // this.list.filters = [new PIXI.filters.BlurFilter(15,2,1,15)];
+        this.list.filters = [new PIXI.filters.BlurFilter(500,32,0.5,15)];
+        // const size = 50;
+        // const fastBlur = new PIXI.filters.KawaseBlurFilter(size,5);
+        // fastBlur.pizelSize = [4,4];
+        // fastBlur.padding = size;
+        // this.list.filters = [fastBlur];
         this.renderer.render(this.list, this.background.renderTex);
         this.list.filters = [];
     }
@@ -118,8 +145,8 @@ class Wall extends PIXI.Container {
         super();
         this.width = width;
         this.height = height;
-        const dim = 2.0 / Math.min(width, height);
-        const geometry = new PIXI.Geometry()
+        const dim = 1.5 / Math.min(width, height);
+        this.geometry = new PIXI.Geometry()
         .addAttribute('aVertexPosition', // the attribute name
             [0, 0, // x, y
                 width, 0, // x, y
@@ -135,16 +162,28 @@ class Wall extends PIXI.Container {
         .addIndex([0, 1, 2, 0, 2, 3]);
 
         this.renderTex = PIXI.RenderTexture.create(width, height);
+        this.bufferA = PIXI.RenderTexture.create(width, height);
+        this.bufferB = PIXI.RenderTexture.create(width, height);
         this.uniforms = {uTexture: G.wall_color,
                           uRoughness: G.wall_roughness,
                           uNormal: G.wall_normal,
                           uAmbient: G.wall_ambient,
                           uHeight: G.wall_height,
                           uLight: this.renderTex,
-                          uX: 0.0, uY: 0.0, uW: width, uH: height};
+                          uLightDir: this.bufferB,
+                          uNN: this.bufferA,
+                          uX: 0.0, uY: 0.0, dim: [width, height]};
         const shader = new PIXI.Shader.from(vertexShader, fragmentNormal, this.uniforms);
-        const wallQuad = new PIXI.Mesh(geometry, shader);
-        this.addChild(wallQuad);        
+        const wallQuad = new PIXI.Mesh(this.geometry, shader);
+        this.addChild(wallQuad);
+        
+        this.jfaUniforms = {uTexIn: this.bufferA, step: 0.0, dim: [width, height]};
+        const jfaShader = new PIXI.Shader.from(vertexShader, jfaFragment, this.jfaUniforms);
+        this.lightPlane = new PIXI.Mesh(this.geometry, jfaShader);
+        
+        this.voronoiSprite = new PIXI.Sprite();
+        this.voronoiSprite.filters = [new PIXI.Filter(spriteVertex, fragmentVoronoi, {dim: [width, height]})];
+        // this.addChild(this.voronoiSprite);
     }
 
     update() {
@@ -202,16 +241,22 @@ class Sphere extends InteractiveObject {
 }
 
 class Light extends InteractiveObject {
-    constructor() {
-        super(new PIXI.Sprite.from(G.eureka));
+    constructor(t) {
+        const sprite = new PIXI.Sprite.from(G.eureka);
+        sprite.anchor.set(0.5);
+        super(sprite);
         this.uniforms = {delta: 0};
         const filter = new PIXI.Filter(spriteVertex, spriteFragment, this.uniforms);
         this.displayObject.filters = [filter];
-        this.t = 0;
+        this.t = t;
+
+        const activeWiggle = new RotationAnimation(new Oscillation(0.5, 0.5, 0));
+        const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
+        this.addAnimation(activeAnimation);
     }
 
     update() {
-        this.t += 0.1
+        this.t += 0.05
         this.uniforms.delta = Math.sin(this.t);
     }
 }
