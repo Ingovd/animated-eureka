@@ -44,10 +44,13 @@ class Game extends PIXI.Application {
     }
 
     init() {
+        // this.stage.filters = [new PIXI.filters.AdvancedBloomFilter()];
+        // this.stage.filters= [new PIXI.filters.BlurFilter()];
+
         this.background = new Wall(window.innerWidth, window.innerHeight);
         this.stage.addChild(this.background);
 
-        this.list = new ListLayout(400);
+        this.list = new ListLayout(600);
         this.stage.addChild(this.list);
 
         
@@ -82,33 +85,6 @@ class Game extends PIXI.Application {
         });
 
         this.background.update();
-
-        this.renderer.render(this.list, this.background.lightLayer);
-        this.background.jfaUniforms.uTexIn = this.background.lightLayer;
-        this.background.jfaUniforms.step = 0.0;
-        this.renderer.render(this.background.jfaQuad, this.background.bufferA);
-        let inBuffer = this.background.bufferA;
-        let outBuffer = this.background.bufferB;
-        for(let i = 10; i >= 0; i--) {
-            this.background.jfaUniforms.uTexIn = inBuffer;
-            this.background.jfaUniforms.step = Math.pow(2, i);
-            this.renderer.render(this.background.jfaQuad, outBuffer);
-            [inBuffer, outBuffer] = [outBuffer, inBuffer];
-        }
-
-        this.list.filters = [new PIXI.filters.BlurFilter(15,4,1,5)];
-        this.renderer.render(this.list, this.background.lightLayer);
-        this.list.filters = [];
-
-        this.background.voronoiUniforms.uNN = inBuffer;
-        this.renderer.render(this.background.voronoiQuad, outBuffer);
-
-        this.background.lightDir.texture = inBuffer;
-        this.renderer.render(this.background.lightDir, this.background.lightLayer);
-
-        this.background.uniforms.uNN = inBuffer;
-        this.background.uniforms.uLightDir = this.background.lightLayer;
-        this.background.uniforms.uLight = outBuffer;
     }
 
     resizeRenderer(){
@@ -168,9 +144,9 @@ class Wall extends PIXI.Container {
                           uNormal: G.wall_normal,
                           uAmbient: G.wall_ambient,
                           uHeight: G.wall_height,
-                          uLight: this.lightLayer,
+                          uLightNear: this.lightLayer,
+                          uLightFar: this.lightLayer,
                           uLightDir: this.bufferB,
-                          uNN: this.bufferA,
                           uX: 0.0, uY: 0.0, dim: [width, height]};
         const shader = new PIXI.Shader.from(vertexShader, fragmentNormal, this.uniforms);
         const wallQuad = new PIXI.Mesh(this.geometry, shader);
@@ -180,21 +156,58 @@ class Wall extends PIXI.Container {
         const jfaShader = new PIXI.Shader.from(vertexShader, jfaFragment, this.jfaUniforms);
         this.jfaQuad = new PIXI.Mesh(this.geometry, jfaShader);
         
+        // const smallBlur = new PIXI.filters.BlurFilter(25,2,0.1,15);
+        const smallBlur = new PIXI.filters.KawaseBlurFilter(4, 8);
+        smallBlur.pixelSize = [3,3];
+        const largeBlur = new PIXI.filters.BlurFilter(200,3,1,5);
+        largeBlur.repeatEdgePixels = true;
+        largeBlur.blendMode = PIXI.BLEND_MODES.HUE;
+
         this.voronoiUniforms = {uNN: this.bufferA, uLights: this.lightLayer, dim: [width, height]};
         const voronoiShader = new PIXI.Shader.from(vertexShader, fragmentVoronoi, this.voronoiUniforms);
         this.voronoiQuad = new PIXI.Mesh(this.geometry, voronoiShader);
-        this.voronoiQuad.filters = [new PIXI.filters.BlurFilter(25,4,0.25,15)
-                                   ,new PIXI.filters.BlurFilter(125,4,0.25,15)];
+        this.voronoiQuad.filters = [smallBlur];
         // this.addChild(this.voronoiQuad);
 
-        this.lightDir = new PIXI.Sprite.from(this.lightLayer);
-        this.lightDir.filters = [new PIXI.filters.BlurFilter(10,4,1,15)];
+        this.lightFar = new PIXI.Sprite.from(this.lightLayer);
+        this.lightFar.filters = [largeBlur];
+        // this.addChild(this.lightFar);
     }
 
     update() {
         this.uniforms.uValue = 1.0;
         this.uniforms.uX = G.renderer.plugins.interaction.mouse.global.x;
         this.uniforms.uY = G.renderer.plugins.interaction.mouse.global.y;
+
+        G.renderer.render(G.list, this.lightLayer);
+        this.jfaUniforms.uTexIn = this.lightLayer;
+        this.jfaUniforms.step = 0.0;
+        G.renderer.render(this.jfaQuad, this.bufferA);
+        let inBuffer = this.bufferA;
+        let outBuffer = this.bufferB;
+        for(let i = 10; i >= 0; i--) {
+            this.jfaUniforms.uTexIn = inBuffer;
+            this.jfaUniforms.step = Math.pow(2, i);
+            G.renderer.render(this.jfaQuad, outBuffer);
+            [inBuffer, outBuffer] = [outBuffer, inBuffer];
+        }
+
+        G.list.filters = [new PIXI.filters.BlurFilter(10,1,0.1,5)];
+        G.renderer.render(G.list, this.lightLayer);
+        G.list.filters = [];
+
+        this.voronoiUniforms.uNN = inBuffer;
+        G.renderer.render(this.voronoiQuad, outBuffer);
+
+        this.lightFar.texture = inBuffer;
+        G.renderer.render(this.lightFar, this.lightLayer);
+
+        this.lightFar.texture = outBuffer;
+        G.renderer.render(this.lightFar, inBuffer);
+
+        this.uniforms.uLightDir = this.lightLayer;
+        this.uniforms.uLightNear = outBuffer;
+        this.uniforms.uLightFar = inBuffer;
     }
 }
 
@@ -252,7 +265,7 @@ class Light extends InteractiveObject {
         super(sprite);
         this.uniforms = {delta: 0};
         const filter = new PIXI.Filter(spriteVertex, spriteFragment, this.uniforms);
-        this.displayObject.filters = [filter];
+        // this.displayObject.filters = [filter];
         this.t = t;
 
         const activeWiggle = new RotationAnimation(new Oscillation(0.1, 1.0, 0));

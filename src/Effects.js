@@ -93,16 +93,10 @@ const fragmentVoronoi = `
 
     void main(void) {
         vec2 nn = texture2D(uNN, vVertexPosition/dim).rg;
-        gl_FragColor = vec4(nn, vec2(1.0));
-        // return;
-
         gl_FragColor = texture2D(uLights, nn);
-        gl_FragColor.a = 1.0;
-        // return;
-
-        float d = 1.0 - min(1.0, floor(distance(vVertexPosition, nn * dim) / 50.0));
-        gl_FragColor *= d;
         gl_FragColor /= max3(gl_FragColor.rgb);
+        gl_FragColor.a = pow(distance(nn * dim, vVertexPosition) / 100.0, 2.0);
+        // gl_FragColor.a = 1.0;
     }
 `;
 
@@ -166,9 +160,9 @@ const fragmentNormal = `
     uniform sampler2D uNormal;
     uniform sampler2D uAmbient;
     uniform sampler2D uHeight;
-    uniform sampler2D uLight;
+    uniform sampler2D uLightNear;
+    uniform sampler2D uLightFar;
     uniform sampler2D uLightDir;
-    uniform sampler2D uNN;
     
     uniform float uX;
     uniform float uY;
@@ -195,13 +189,13 @@ const fragmentNormal = `
 
     void main(void) {
         vec2 uv = vUvs;
-        vec2 nn = texture2D(uNN, vVertexPosition/dim).xy;
+        vec2 nn = texture2D(uLightDir, vVertexPosition/dim).xy;
 
         vec3 vertexPos = vec3(vVertexPosition, 0.0);
-        float influence = pow(max(1.0 - distance(vVertexPosition, nn * dim) / 400.0, 0.0), 2.0);
+        float influence = pow(max(1.0 - distance(vVertexPosition, nn * dim) / 700.0, 0.0), 2.0);
         // influence = 1.0;
 
-        vec3 lightPos = vec3(texture2D(uLightDir, vVertexPosition/dim).xy * dim, 150.0);
+        vec3 lightPos = vec3(nn * dim, 150.0);
         float shininess = (texture2D(uRoughness, uv).r) * 100.0;
 
         vec3 L = normalize(lightPos - vertexPos);
@@ -214,7 +208,11 @@ const fragmentNormal = `
             float specAngle = max(dot(R, V), 0.0);
             specular = pow(specAngle, shininess);
         }
-        vec3 lightColor = texture2D(uLight, vVertexPosition/dim).rgb;
+
+        vec4 nearColor = texture2D(uLightNear, vVertexPosition/dim);
+        vec4 farColor = texture2D(uLightFar, vVertexPosition/dim);
+
+        vec3 lightColor = mix(nearColor, farColor, nearColor.a).rgb;
         lightColor /= max3(lightColor);
         // lightColor = vec3(0.0, 1.0, 1.0);
         lightColor *= influence;
