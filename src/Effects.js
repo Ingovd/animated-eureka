@@ -20,7 +20,7 @@ const spriteFragment = `
     {
         vec4 color = texture2D(uSampler, vTextureCoord );
         if (color.a != 0.0){
-            color.r = delta;
+            color.r += delta;
             color.g -= delta;
             color.b -= delta;
         }
@@ -95,8 +95,7 @@ const fragmentVoronoi = `
         vec2 nn = texture2D(uNN, vVertexPosition/dim).rg;
         gl_FragColor = texture2D(uLights, nn);
         gl_FragColor /= max3(gl_FragColor.rgb);
-        gl_FragColor.a = pow(distance(nn * dim, vVertexPosition) / 100.0, 2.0);
-        // gl_FragColor.a = 1.0;
+        gl_FragColor.a = distance(nn * dim, vVertexPosition) / 500.0;
     }
 `;
 
@@ -192,11 +191,8 @@ const fragmentNormal = `
         vec2 nn = texture2D(uLightDir, vVertexPosition/dim).xy;
 
         vec3 vertexPos = vec3(vVertexPosition, 0.0);
-        float influence = pow(max(1.0 - distance(vVertexPosition, nn * dim) / 700.0, 0.0), 2.0);
-        // influence = 1.0;
-
-        vec3 lightPos = vec3(nn * dim, 150.0);
-        float shininess = (texture2D(uRoughness, uv).r) * 100.0;
+        vec3 lightPos = vec3(nn * dim, 250.0);
+        float shininess = (texture2D(uRoughness, uv).r) * 150.0;
 
         vec3 L = normalize(lightPos - vertexPos);
         vec3 N = normalize(texture2D(uNormal, uv).xyz * 2.0 - 1.0);
@@ -211,17 +207,14 @@ const fragmentNormal = `
 
         vec4 nearColor = texture2D(uLightNear, vVertexPosition/dim);
         vec4 farColor = texture2D(uLightFar, vVertexPosition/dim);
+        float influence = 1.0 - nearColor.a;
+        vec3 lightColor = mix(nearColor, farColor, pow(nearColor.a, 0.2)).rgb;
+        // lightColor = nearColor.rgb;
 
-        vec3 lightColor = mix(nearColor, farColor, nearColor.a).rgb;
-        lightColor /= max3(lightColor);
-        // lightColor = vec3(0.0, 1.0, 1.0);
         lightColor *= influence;
-        // lightColor = vec3(1.0);
-        gl_FragColor = vec4(mix(lambertian * mix(texture2D(uTexture,uv).rgb, lightColor, 0.2),
-                                specular * lightColor, 0.2)
-                            * pow(texture2D(uAmbient, uv).r, 0.5) * influence, 1.0);
-        
-        // gl_FragColor.rg =  texture2D(uNN, vVertexPosition/dim).xy;
+        gl_FragColor = vec4(mix(lambertian * mix(texture2D(uTexture,uv).rgb, lightColor, 0.6),
+                                specular * lightColor, 0.3)
+                            * pow(texture2D(uAmbient, uv).r, 1.0) * influence, 1.0);
     }`;
 
 

@@ -62,7 +62,7 @@ class TransitionAnimation extends Animation {
         super();
         this.dfa = dfa;
         this.animations = animations;
-        this.transTime = 10;
+        this.transTime = 20;
         
         this.prevTransform = PIXI.Transform.IDENTITY;
         for (const state in animations) {

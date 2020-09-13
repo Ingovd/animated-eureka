@@ -50,7 +50,7 @@ class Game extends PIXI.Application {
         this.background = new Wall(window.innerWidth, window.innerHeight);
         this.stage.addChild(this.background);
 
-        this.list = new ListLayout(600);
+        this.list = new ListLayout(500);
         this.stage.addChild(this.list);
 
         
@@ -157,20 +157,20 @@ class Wall extends PIXI.Container {
         this.jfaQuad = new PIXI.Mesh(this.geometry, jfaShader);
         
         // const smallBlur = new PIXI.filters.BlurFilter(25,2,0.1,15);
-        const smallBlur = new PIXI.filters.KawaseBlurFilter(4, 8);
-        smallBlur.pixelSize = [3,3];
-        const largeBlur = new PIXI.filters.BlurFilter(200,3,1,5);
-        largeBlur.repeatEdgePixels = true;
-        largeBlur.blendMode = PIXI.BLEND_MODES.HUE;
+        this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 8);
+        this.smallBlur.pixelSize = [3,3];
+        this.largeBlur = new PIXI.filters.BlurFilter(100,2,0.1,15);
+        this.largeBlur.repeatEdgePixels = true;
+        this.largeBlur.blendMode = PIXI.BLEND_MODES.HUE;
 
         this.voronoiUniforms = {uNN: this.bufferA, uLights: this.lightLayer, dim: [width, height]};
         const voronoiShader = new PIXI.Shader.from(vertexShader, fragmentVoronoi, this.voronoiUniforms);
         this.voronoiQuad = new PIXI.Mesh(this.geometry, voronoiShader);
-        this.voronoiQuad.filters = [smallBlur];
+        this.voronoiQuad.filters = [this.smallBlur];
         // this.addChild(this.voronoiQuad);
 
         this.lightFar = new PIXI.Sprite.from(this.lightLayer);
-        this.lightFar.filters = [largeBlur];
+        this.lightFar.filters = [this.largeBlur];
         // this.addChild(this.lightFar);
     }
 
@@ -200,9 +200,11 @@ class Wall extends PIXI.Container {
         G.renderer.render(this.voronoiQuad, outBuffer);
 
         this.lightFar.texture = inBuffer;
+        this.lightFar.filters  = [this.smallBlur];
         G.renderer.render(this.lightFar, this.lightLayer);
 
         this.lightFar.texture = outBuffer;
+        this.lightFar.filters  = [this.largeBlur];
         G.renderer.render(this.lightFar, inBuffer);
 
         this.uniforms.uLightDir = this.lightLayer;
@@ -268,7 +270,7 @@ class Light extends InteractiveObject {
         // this.displayObject.filters = [filter];
         this.t = t;
 
-        const activeWiggle = new RotationAnimation(new Oscillation(0.1, 1.0, 0));
+        const activeWiggle = new RotationAnimation(new Oscillation(0.05, 1.0, 0));
         const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
         this.addAnimation(activeAnimation);
     }
