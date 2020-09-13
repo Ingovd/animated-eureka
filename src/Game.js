@@ -13,7 +13,7 @@ class Game extends PIXI.Application {
                    .add('leaf', "assets/sprites/item_green_leaf.png")
                    .add('suit', "assets/sprites/item_tanooki_suit.png")
                    .add('star', "assets/sprites/item_star.png")
-                   .add('eureka', "assets/neon/eureka_no_aa.png")
+                   .add('eureka', "assets/neon/eureka_rainbow.png")
                    .add('wall_color', "assets/wall/wall_baseColor.jpg")
                    .add('wall_normal', "assets/wall/wall_normal.jpg")
                    .add('wall_roughness', "assets/wall/wall_roughness.jpg")
@@ -83,34 +83,32 @@ class Game extends PIXI.Application {
 
         this.background.update();
 
-        this.renderer.render(this.list, this.background.renderTex);
-        this.background.jfaUniforms.uTexIn = this.background.renderTex;
+        this.renderer.render(this.list, this.background.lightLayer);
+        this.background.jfaUniforms.uTexIn = this.background.lightLayer;
         this.background.jfaUniforms.step = 0.0;
-        this.renderer.render(this.background.lightPlane, this.background.bufferA);
+        this.renderer.render(this.background.jfaQuad, this.background.bufferA);
         let inBuffer = this.background.bufferA;
         let outBuffer = this.background.bufferB;
         for(let i = 10; i >= 0; i--) {
             this.background.jfaUniforms.uTexIn = inBuffer;
             this.background.jfaUniforms.step = Math.pow(2, i);
-            this.renderer.render(this.background.lightPlane, outBuffer);
+            this.renderer.render(this.background.jfaQuad, outBuffer);
             [inBuffer, outBuffer] = [outBuffer, inBuffer];
         }
-        this.background.voronoiSprite.texture = inBuffer;
-        this.background.uniforms.uNN = inBuffer;
-        this.background.voronoiSprite.filters.push(new PIXI.filters.BlurFilter(10,2,1,15));
-        this.renderer.render(this.background.voronoiSprite, outBuffer);
-        this.background.voronoiSprite.filters.pop();
-        this.background.uniforms.uLightDir = outBuffer;
 
-        // this.list.filters = [new PIXI.filters.BlurFilter(15,2,1,15)];
-        this.list.filters = [new PIXI.filters.BlurFilter(500,32,0.5,15)];
-        // const size = 50;
-        // const fastBlur = new PIXI.filters.KawaseBlurFilter(size,5);
-        // fastBlur.pizelSize = [4,4];
-        // fastBlur.padding = size;
-        // this.list.filters = [fastBlur];
-        this.renderer.render(this.list, this.background.renderTex);
+        this.list.filters = [new PIXI.filters.BlurFilter(15,4,1,5)];
+        this.renderer.render(this.list, this.background.lightLayer);
         this.list.filters = [];
+
+        this.background.voronoiUniforms.uNN = inBuffer;
+        this.renderer.render(this.background.voronoiQuad, outBuffer);
+
+        this.background.lightDir.texture = inBuffer;
+        this.renderer.render(this.background.lightDir, this.background.lightLayer);
+
+        this.background.uniforms.uNN = inBuffer;
+        this.background.uniforms.uLightDir = this.background.lightLayer;
+        this.background.uniforms.uLight = outBuffer;
     }
 
     resizeRenderer(){
@@ -161,15 +159,16 @@ class Wall extends PIXI.Container {
             2) // the size of the attribute
         .addIndex([0, 1, 2, 0, 2, 3]);
 
-        this.renderTex = PIXI.RenderTexture.create(width, height);
-        this.bufferA = PIXI.RenderTexture.create(width, height);
-        this.bufferB = PIXI.RenderTexture.create(width, height);
+        const options = {width: width, height: height, scaleMode: PIXI.SCALE_MODES.LINEAR};
+        this.lightLayer = PIXI.RenderTexture.create(options);
+        this.bufferA = PIXI.RenderTexture.create(options);
+        this.bufferB = PIXI.RenderTexture.create(options);
         this.uniforms = {uTexture: G.wall_color,
                           uRoughness: G.wall_roughness,
                           uNormal: G.wall_normal,
                           uAmbient: G.wall_ambient,
                           uHeight: G.wall_height,
-                          uLight: this.renderTex,
+                          uLight: this.lightLayer,
                           uLightDir: this.bufferB,
                           uNN: this.bufferA,
                           uX: 0.0, uY: 0.0, dim: [width, height]};
@@ -179,11 +178,17 @@ class Wall extends PIXI.Container {
         
         this.jfaUniforms = {uTexIn: this.bufferA, step: 0.0, dim: [width, height]};
         const jfaShader = new PIXI.Shader.from(vertexShader, jfaFragment, this.jfaUniforms);
-        this.lightPlane = new PIXI.Mesh(this.geometry, jfaShader);
+        this.jfaQuad = new PIXI.Mesh(this.geometry, jfaShader);
         
-        this.voronoiSprite = new PIXI.Sprite();
-        this.voronoiSprite.filters = [new PIXI.Filter(spriteVertex, fragmentVoronoi, {dim: [width, height]})];
-        // this.addChild(this.voronoiSprite);
+        this.voronoiUniforms = {uNN: this.bufferA, uLights: this.lightLayer, dim: [width, height]};
+        const voronoiShader = new PIXI.Shader.from(vertexShader, fragmentVoronoi, this.voronoiUniforms);
+        this.voronoiQuad = new PIXI.Mesh(this.geometry, voronoiShader);
+        this.voronoiQuad.filters = [new PIXI.filters.BlurFilter(25,4,0.25,15)
+                                   ,new PIXI.filters.BlurFilter(125,4,0.25,15)];
+        // this.addChild(this.voronoiQuad);
+
+        this.lightDir = new PIXI.Sprite.from(this.lightLayer);
+        this.lightDir.filters = [new PIXI.filters.BlurFilter(10,4,1,15)];
     }
 
     update() {
@@ -250,13 +255,13 @@ class Light extends InteractiveObject {
         this.displayObject.filters = [filter];
         this.t = t;
 
-        const activeWiggle = new RotationAnimation(new Oscillation(0.5, 0.5, 0));
+        const activeWiggle = new RotationAnimation(new Oscillation(0.1, 1.0, 0));
         const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
         this.addAnimation(activeAnimation);
     }
 
     update() {
-        this.t += 0.05
+        this.t += 0.005
         this.uniforms.delta = Math.sin(this.t);
     }
 }

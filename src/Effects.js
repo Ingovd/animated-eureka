@@ -30,22 +30,6 @@ const spriteFragment = `
         gl_FragColor *= color.a;
 }`;
 
-
-const fragmentVoronoi = `
-    varying vec2 vTextureCoord;
-    uniform sampler2D uSampler;
-
-    // uniform sampler2D uLights;
-    uniform vec2 dim;
-
-    void main(void) {
-        vec2 nn = texture2D(uSampler, vTextureCoord).rg;
-        float d = distance(vTextureCoord * dim, nn * dim) / max(dim.x, dim.y);
-        gl_FragColor = vec4(vec3(d), 1.0);
-        gl_FragColor.rg = nn;
-    }
-`;
-
 const vertexShader = `
     precision mediump float;
     attribute vec2 aVertexPosition;
@@ -93,6 +77,35 @@ const testShader = `
         }
     }`;
 
+const fragmentVoronoi = `
+    precision mediump float;    
+
+    varying vec2 vVertexPosition;
+    varying vec2 vUvs;
+
+    uniform sampler2D uNN;
+    uniform sampler2D uLights;
+    uniform vec2 dim;
+
+    float max3(in vec3 v) {
+        return max(max(v.x, v.y), v.z);
+    }
+
+    void main(void) {
+        vec2 nn = texture2D(uNN, vVertexPosition/dim).rg;
+        gl_FragColor = vec4(nn, vec2(1.0));
+        // return;
+
+        gl_FragColor = texture2D(uLights, nn);
+        gl_FragColor.a = 1.0;
+        // return;
+
+        float d = 1.0 - min(1.0, floor(distance(vVertexPosition, nn * dim) / 50.0));
+        gl_FragColor *= d;
+        gl_FragColor /= max3(gl_FragColor.rgb);
+    }
+`;
+
 const jfaFragment =`
     precision mediump float;
 
@@ -108,10 +121,10 @@ const jfaFragment =`
         float d_p = distance(p.xy * dim, vVertexPosition);
         float d_q = distance(q.xy * dim, vVertexPosition);
         if(p.a == 0.0) {
-            d_p = dim.x + dim.y;
+            d_p = 10.0 * (dim.x + dim.y);
         }
         if(q.a == 0.0) {
-            d_q = dim.x + dim.y;
+            d_q = 10.0 * (dim.x + dim.y);
         }
         if(d_p < d_q) {
             return p;
@@ -126,7 +139,7 @@ const jfaFragment =`
             if(light.r + light.g + light.b > 0.0) {
                 gl_FragColor = vec4(vVertexPosition / dim, 0.0, 1.0);
             } else {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+                gl_FragColor = vec4(0.0, 1.0, 0.0, 0.0);
             }
             return;
         }
@@ -185,10 +198,10 @@ const fragmentNormal = `
         vec2 nn = texture2D(uNN, vVertexPosition/dim).xy;
 
         vec3 vertexPos = vec3(vVertexPosition, 0.0);
-        float influence = pow(max(1.0 - distance(vVertexPosition, nn * dim) / 500.0, 0.0), 2.0);
+        float influence = pow(max(1.0 - distance(vVertexPosition, nn * dim) / 400.0, 0.0), 2.0);
         // influence = 1.0;
 
-        vec3 lightPos = vec3(texture2D(uLightDir, vVertexPosition/dim).xy * dim, 150.0 + 150.0 * (1.0 - influence));
+        vec3 lightPos = vec3(texture2D(uLightDir, vVertexPosition/dim).xy * dim, 150.0);
         float shininess = (texture2D(uRoughness, uv).r) * 100.0;
 
         vec3 L = normalize(lightPos - vertexPos);
