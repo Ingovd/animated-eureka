@@ -25,10 +25,10 @@ const spriteFragment = `
         //     color.b -= delta;
         // }
         gl_FragColor = color;
-        gl_FragColor.rgb += + vec3(0.1, 0.1, 0.1);
+        gl_FragColor.rgb += + vec3(0.2, 0.2, 0.2);
         // gl_FragColor.g = 1.0;
         // gl_FragColor.rg = vTextureCoord;
-        gl_FragColor *= color.a *color.a* 10.0;
+        gl_FragColor *= color.a * 2.0;
 }`;
 
 const expBlend = `

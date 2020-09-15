@@ -39,6 +39,7 @@ class Game extends PIXI.Application {
                    .add('star', "assets/sprites/item_star.png")
                    .add('eureka', "assets/neon/eureka_rainbow.png")
                    .add('bar', "assets/neon/bar.png")
+                   .add('items', "assets/neon/items.png")
                    .add('wall_color', "assets/wall/wall_baseColor.jpg")
                    .add('wall_normal', "assets/wall/wall_normal.jpg")
                    .add('wall_roughness', "assets/wall/wall_roughness.jpg")
@@ -54,6 +55,7 @@ class Game extends PIXI.Application {
 
             G.eureka = resources.eureka.texture;
             G.bar = resources.bar.texture;
+            G.items = resources.items.texture;
 
             G.wall_color = resources.wall_color.texture;
             G.wall_color.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
@@ -89,11 +91,11 @@ class Game extends PIXI.Application {
         // this.test = new Sphere();
         // this.list.add(this.test);
 
-        this.list.add(new Light(0));
+        // this.list.add(new Light(0));
         // this.list.add(new Light(Math.PI*2/3));
         // this.list.add(new Light(Math.PI*4/3));
 
-        this.list.add(new NeonTube(new PIXI.Sprite.from(G.bar)));
+        this.list.add(new NeonTube(new PIXI.Sprite.from(G.items)));
         const tube2 = new NeonTube(new PIXI.Sprite.from(G.bar));
         tube2.t = Math.PI;
         // this.list.add(tube2);
@@ -208,7 +210,7 @@ class Wall extends PIXI.Container {
         this.lightBlendUniforms = {uTextureA: this.bufferA, uTextureB: this.bufferB};
         this.lightBlend = new PIXI.Filter(spriteVertex, expBlend, this.lightBlendUniforms);
         this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 2, true);
-        this.smallBlur.pixelSize = [1,1];
+        this.smallBlur.pixelSize = [4,4];
         // this.smallBlur = new PIXI.filters.BlurFilter(10, 2, 1, 5);
         this.smallBlur.blendMode = PIXI.BLEND_MODES.ADD;
         this.largeBlur = new PIXI.filters.BlurFilter(200,3,0.05,15);
@@ -288,7 +290,7 @@ class Wall extends PIXI.Container {
 
 class Cursor extends GameObject {
     constructor() {
-        const sprite = new PIXI.Sprite.from(G.bar);
+        const sprite = new PIXI.Sprite.from(G.eureka);
         super(sprite);
         // sprite.visible = false;
     }
