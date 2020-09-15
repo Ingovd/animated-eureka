@@ -52,7 +52,7 @@ class Game extends PIXI.Application {
         this.background = new Wall(window.innerWidth, window.innerHeight);
         this.stage.addChild(this.background);
 
-        this.list = new ListLayout(350);
+        this.list = new ListLayout(200);
         this.stage.addChild(this.list);
 
         
@@ -69,11 +69,17 @@ class Game extends PIXI.Application {
         // this.list.add(new Light(Math.PI*2/3));
         // this.list.add(new Light(Math.PI*4/3));
 
+        // this.list.add(new NeonTube(new PIXI.Sprite.from(G.bar)));
+        const tube2 = new NeonTube(new PIXI.Sprite.from(G.bar));
+        tube2.t = Math.PI;
+        this.list.add(tube2);
+
         this.cursor = new Cursor();
         this.stage.addChild(this.cursor);
 
         this.list.center();
         this.ticker.add(this.update.bind(this));
+        this.ticker.maxFPS = 30;
         this.resizeRenderer();
     }
 
@@ -133,6 +139,8 @@ class Wall extends PIXI.Container {
         console.log(width)
         console.log(this.w)
         const size = 1.5 / Math.min(width, height);
+        const xPixel = -0.5 / width;
+        const yPixel = -0.5 / height;
         this.geometry = new PIXI.Geometry()
         .addAttribute('aVertexPosition', // the attribute name
             [0, 0, // x, y
@@ -141,18 +149,22 @@ class Wall extends PIXI.Container {
                 0, this.h], // x, y
             2) // the size of the attribute
         .addAttribute('aUvs', // the attribute name
-            [0, 0, // u, v
-                this.w*size, 0, // u, v
-                this.w*size, this.h*size,
-                0, this.h*size], // u, v
+            [xPixel, yPixel, // u, v
+                1 + xPixel, yPixel, // u, v
+                1 + xPixel, 1 + yPixel,
+                xPixel, 1 + yPixel], // u, v
             2) // the size of the attribute
         .addIndex([0, 1, 2, 0, 2, 3]);
 
-        const options = {width: this.w, height: this.h, scaleMode: PIXI.SCALE_MODES.LINEAR};
+        const options = {width: this.w, height: this.h, scaleMode: PIXI.SCALE_MODES.NEAREST, type: PIXI.TYPES.FLOAT};
         this.bufferA = PIXI.RenderTexture.create(options);
         this.bufferB = PIXI.RenderTexture.create(options);
         this.bufferC = PIXI.RenderTexture.create(options);
         this.bufferD = PIXI.RenderTexture.create(options);
+
+        options.type = PIXI.TYPES.UNSIGNED_BYTE;
+        this.ungsignedBuffer = PIXI.RenderTexture.create(options);
+
         this.uniforms = {uTexture: G.wall_color,
                           uRoughness: G.wall_roughness,
                           uNormal: G.wall_normal,
@@ -178,12 +190,11 @@ class Wall extends PIXI.Container {
         
         this.lightBlendUniforms = {uTextureA: this.bufferA, uTextureB: this.bufferB};
         this.lightBlend = new PIXI.Filter(spriteVertex, expBlend, this.lightBlendUniforms);
-        this.lightBlur = new PIXI.filters.BlurFilter(10,1,0.2,5);
-        this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 5, true);
-        this.smallBlur.pixelSize = [2,2];
+        this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 8, true);
+        this.smallBlur.pixelSize = [6,6];
         // this.smallBlur = new PIXI.filters.BlurFilter(10, 2, 0.5, 5);
         this.smallBlur.blendMode = PIXI.BLEND_MODES.ADD;
-        this.largeBlur = new PIXI.filters.BlurFilter(200,2,0.01,15);
+        this.largeBlur = new PIXI.filters.BlurFilter(500,5,1,5);
         this.largeBlur.repeatEdgePixels = false;
         this.largeBlur.blendMode = PIXI.BLEND_MODES.ADD;
 
@@ -206,11 +217,13 @@ class Wall extends PIXI.Container {
 
         // Render the XY-positions of each pixel light source
         // from two light layers
+        G.list.filters = [];
         G.renderer.render(G.list, this.bufferC);
         G.renderer.render(G.cursor, this.bufferD);
         this.positionUniforms.lightA = this.bufferC;
         this.positionUniforms.lightB = this.bufferD;
         G.renderer.render(this.positionQuad, this.bufferA);
+        // return;
 
         // Perform JFA to generate a Nearest Neighbour map
         let inBuffer = this.bufferA;
@@ -223,63 +236,57 @@ class Wall extends PIXI.Container {
         }
         this.bufferA = inBuffer; // Holds NN map
         this.bufferB = outBuffer; // Reusable
+        // return;
 
         // Colour the NN map by the nearest light source
-        
-        G.list.filters = [this.lightBlur];
         G.renderer.render(G.list, this.bufferC);
         G.list.filters = [];
         this.voronoiUniforms.uNN = this.bufferA;
         this.voronoiUniforms.uLights = this.bufferC;
         this.voronoiQuad.shader = this.voronoiShaderA;
         G.renderer.render(this.voronoiQuad, this.bufferB); // B holds blurred near-lightA
+        // return;
 
         // Smooth the coloured NN map to simulate light blending at a distance
         this.blurSprite.texture = this.bufferB;
         this.blurSprite.filters  = [this.largeBlur];
         G.renderer.render(this.blurSprite, this.bufferC); // C holds blurred far-lightA
+        // return;
 
         // Blend the near and far light colours
         this.lightBlendUniforms.uTextureA = this.bufferB;
         this.lightBlendUniforms.uTextureB = this.bufferC;
         this.blurSprite.filters = [this.lightBlend];
-        G.renderer.render(this.blurSprite, this.bufferD); // D holds lightA
+        G.renderer.render(this.blurSprite, this.ungsignedBuffer); // D holds lightA
+        // return;
 
-        G.cursor.filters = [this.lightBlur];
         G.renderer.render(G.cursor, this.bufferB);
         G.cursor.filters = [];
         this.voronoiUniforms.uLights = this.bufferB;
         this.voronoiQuad.shader = this.voronoiShaderB;
         G.renderer.render(this.voronoiQuad, this.bufferC); // C holds blurred near-lightB
-
-        // // Smooth the coloured NN map to simulate light blending at a distance
-        // this.blurSprite.texture = this.bufferC;
-        // this.blurSprite.filters  = [this.largeBlur];
-        // G.renderer.render(this.blurSprite, this.bufferB); // B holds blurred far-lightB
-
-        // // Blend the near and far light colours
-        // this.lightBlendUniforms.uTextureA = this.bufferC;
-        // this.lightBlendUniforms.uTextureB = this.bufferB;
-        // this.blurSprite.filters = [this.lightBlend];
-        // G.renderer.render(this.blurSprite, this.bufferD); // D holds lightA
+        // return;
 
         // Smooth out the NN map for smoother light directions
         this.blurSprite.texture = this.bufferA;
         this.blurSprite.filters  = [this.smallBlur];
         G.renderer.render(this.blurSprite, this.bufferB);
+        // return;
 
         // Set the textures for rendering the background
         this.uniforms.uLightDir = this.bufferB;
-        this.uniforms.uLightA = this.bufferD;
+        this.uniforms.uLightA = this.ungsignedBuffer;
         this.uniforms.uLightB = this.bufferC;
 
         G.list.overExpose();
+
+        // G.ticker.stop();
     }
 }
 
 class Cursor extends GameObject {
     constructor() {
-        const sprite = new PIXI.Sprite.from(G.leaf);
+        const sprite = new PIXI.Sprite.from(G.star);
         super(sprite);
         // sprite.visible = false;
     }
@@ -289,6 +296,67 @@ class Cursor extends GameObject {
         this.position.y = G.renderer.plugins.interaction.mouse.global.y;
     }
 }
+
+class Chest extends InteractiveObject {
+    constructor() {
+        const sprite = new PIXI.Sprite.from(G.closed);
+        sprite.anchor.set(0.5);
+        super(sprite);
+
+        const idleOscillate = new ScaleAnimation(new Oscillation(0.05, 0.05, 1.05));
+        const hoverGrow = new ScaleAnimation(new Interpolate(30, 1, 2, .2));
+        const selectAnimation = new TransitionAnimation(this.dfa, {idle: idleOscillate, selected: hoverGrow, active: hoverGrow});
+        this.addAnimation(selectAnimation);
+
+        const activeWiggle = new RotationAnimation(new Oscillation(0.5, 0.1, 0));
+        const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
+        this.addAnimation(activeAnimation);
+
+        var self = this;
+        this.dfa.addOnEnter("active", function() {
+            console.log("bla");
+            self.timer = setTimeout(self.action.bind(self), 1000);
+        });
+        this.dfa.addOnExit("active", function() {
+            clearTimeout(self.timer);
+        });
+    }
+
+    action() {
+        console.log("blabla");
+        this.displayObject.texture = G.opened;
+        this.addChild(this.generateItem());
+    }
+
+    generateItem() {
+        const p = Math.random();
+        let texture = G.suit;
+        if(p < .5)
+            texture = G.cloud;
+        else if (p < .8)
+            texture = G.leaf;
+        return new Item(new PIXI.Sprite.from(texture));
+    }
+}
+
+class Item extends GameObject {
+    constructor(displayObject) {
+        super(displayObject);
+
+        this.v = {x: Math.random() - 0.5, y: Math.random() - 0.5};
+        // this.v = {x: 0.0, y: -1.0};
+        const l = Math.pow(this.v.x * this.v.x + this.v.y * this.v.y, 0.5);
+        this.v.x *= 20 / l;
+        this.v.y *= 20 / l;
+    }
+
+    update() {
+        this.position.x += this.v.x;
+        this.position.y += this.v.y;
+        this.v.y += 0.5;
+    }
+}
+
 
 class Sphere extends InteractiveObject {
     constructor() {
@@ -334,105 +402,5 @@ class Sphere extends InteractiveObject {
 
     off() {
         this.uniforms.uValue = 0.5;
-    }
-}
-
-class Light extends InteractiveObject {
-    constructor(t) {
-        const sprite = new PIXI.Sprite.from(G.eureka);
-        // sprite.anchor.set(0.5);
-        super(sprite);
-        this.uniforms = {delta: 0};
-        this.overExpose = new PIXI.Filter(spriteVertex, spriteFragment, this.uniforms);
-        this.displayObject.filters = [];
-        this.t = t;
-
-        const activeWiggle = new RotationAnimation(new Oscillation(0.05, 1.0, 0));
-        const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
-        this.addAnimation(activeAnimation);
-
-        var self = this;
-        this.dfa.addOnEnter("selected", function() {
-            sprite.visible = false;
-        });
-        this.dfa.addOnEnter("active", function() {
-            sprite.visible = true;
-        });
-        this.dfa.addOnEnter("idle", function() {
-            sprite.visible = true;
-        });
-    }
-
-    update() {
-        this.t += 0.005
-        this.uniforms.delta = Math.sin(this.t);
-    }
-}
-
-class Chest extends InteractiveObject {
-    constructor() {
-        const sprite = new PIXI.Sprite.from(G.closed);
-        sprite.anchor.set(0.5);
-        super(sprite);
-
-        const idleOscillate = new ScaleAnimation(new Oscillation(0.05, 0.05, 1.05));
-        const hoverGrow = new ScaleAnimation(new Interpolate(30, 1, 2, .2));
-        const selectAnimation = new TransitionAnimation(this.dfa, {idle: idleOscillate, selected: hoverGrow, active: hoverGrow});
-        this.addAnimation(selectAnimation);
-
-        const activeWiggle = new RotationAnimation(new Oscillation(0.5, 0.1, 0));
-        const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
-        this.addAnimation(activeAnimation);
-
-        var self = this;
-        this.dfa.addOnEnter("active", function() {
-            console.log("bla");
-            G.cursor.addChild(self.generateItem());
-            G.cursor.addChild(self.generateItem());
-            G.cursor.addChild(self.generateItem());
-            G.cursor.addChild(self.generateItem());
-            G.cursor.addChild(self.generateItem());
-            G.cursor.addChild(self.generateItem());
-            G.cursor.addChild(self.generateItem());
-            G.cursor.addChild(self.generateItem());
-            self.timer = setTimeout(self.action.bind(self), 1000);
-        });
-        this.dfa.addOnExit("active", function() {
-            clearTimeout(self.timer);
-        });
-    }
-
-    action() {
-        console.log("blabla");
-        this.displayObject.texture = G.opened;
-        this.addChild(this.generateItem());
-    }
-
-    generateItem() {
-        const p = Math.random();
-        let texture = G.suit;
-        if(p < .5)
-            texture = G.cloud;
-        else if (p < .8)
-            texture = G.leaf;
-        return new Item(new PIXI.Sprite.from(texture));
-    }
-}
-
-class Item extends GameObject {
-    constructor(displayObject) {
-        super(displayObject);
-
-        this.v = {x: Math.random() - 0.5, y: Math.random() - 0.5};
-        // this.v = {x: 0.0, y: -1.0};
-        const l = Math.pow(this.v.x * this.v.x + this.v.y * this.v.y, 0.5);
-        this.v.x *= 20 / l;
-        this.v.y *= 20 / l;
-    }
-
-    update() {
-        this.position.x += this.v.x;
-        this.position.y += this.v.y;
-        this.v.y += 0.5;
     }
 }

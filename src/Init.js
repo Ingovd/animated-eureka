@@ -5,6 +5,8 @@ canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); });
 // disable dragging
 window.ondragstart = function() { return false; };
 
+PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+
 var G = new Game({
     view: canvas,
     backgroundColor: 0x1099bb,
@@ -12,7 +14,7 @@ var G = new Game({
     height: window.innerHeight,
     resolution: window.devicePixelRatio,
     autoDensity: true,
-    antialias: true,
+    antialias: false,
     sharedTicker: true,
     sharedLoader: true
 });
