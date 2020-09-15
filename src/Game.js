@@ -238,7 +238,7 @@ class Wall extends PIXI.Container {
         // Perform JFA to generate a Nearest Neighbour map
         let inBuffer = this.bufferA;
         let outBuffer = this.bufferB;
-        for(let i = 6; i >= 0; i--) {
+        for(let i = 5; i >= 0; i--) {
             this.jfaUniforms.uTexIn = inBuffer;
             this.jfaUniforms.step = Math.pow(2, i) * 5;
             G.renderer.render(this.jfaQuad, outBuffer);
