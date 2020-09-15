@@ -25,7 +25,7 @@ class Game extends PIXI.Application {
             2) // the size of the attribute
         .addIndex([0, 1, 2, 0, 2, 3]);
 
-        const options = {width: this.w, height: this.h, scaleMode: PIXI.SCALE_MODES.NEAREST};
+        const options = {resolution: 0.1, width: this.w, height: this.h, scaleMode: PIXI.SCALE_MODES.NEAREST};
         this.lightBufferA = PIXI.RenderTexture.create(options);
         this.lightBufferB = PIXI.RenderTexture.create(options);
     }
@@ -93,17 +93,17 @@ class Game extends PIXI.Application {
         // this.list.add(new Light(Math.PI*2/3));
         // this.list.add(new Light(Math.PI*4/3));
 
-        // this.list.add(new NeonTube(new PIXI.Sprite.from(G.bar)));
+        this.list.add(new NeonTube(new PIXI.Sprite.from(G.bar)));
         const tube2 = new NeonTube(new PIXI.Sprite.from(G.bar));
         tube2.t = Math.PI;
-        this.list.add(tube2);
+        // this.list.add(tube2);
 
         this.cursor = new Cursor();
         this.stage.addChild(this.cursor);
 
         this.list.center();
         this.ticker.add(this.update.bind(this));
-        this.ticker.maxFPS = 30;
+        // this.ticker.maxFPS = 20;
         this.resizeRenderer();
     }
 
@@ -157,7 +157,7 @@ class ListLayout extends PIXI.Container {
     }
 
     overExpose() {
-        this.filters = [new PIXI.filters.BlurFilter(1, 2, 1, 15), new PIXI.Filter(spriteVertex, spriteFragment)];
+        this.filters = [new PIXI.filters.BlurFilter(1, 1, 1, 15), new PIXI.Filter(spriteVertex, spriteFragment)];
     }
 
     center() {
@@ -172,7 +172,7 @@ class Wall extends PIXI.Container {
     constructor() {
         super();
 
-        const options = {width: G.w, height: G.h, scaleMode: PIXI.SCALE_MODES.NEAREST, type: PIXI.TYPES.FLOAT};
+        const options = {resolution: 0.2, width: G.w, height: G.h, scaleMode: PIXI.SCALE_MODES.NEAREST, type: PIXI.TYPES.FLOAT};
         this.bufferA = PIXI.RenderTexture.create(options);
         this.bufferB = PIXI.RenderTexture.create(options);
         this.bufferC = PIXI.RenderTexture.create(options);
@@ -206,11 +206,11 @@ class Wall extends PIXI.Container {
         
         this.lightBlendUniforms = {uTextureA: this.bufferA, uTextureB: this.bufferB};
         this.lightBlend = new PIXI.Filter(spriteVertex, expBlend, this.lightBlendUniforms);
-        this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 4, true);
-        this.smallBlur.pixelSize = [6,6];
+        this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 2, true);
+        this.smallBlur.pixelSize = [3,3];
         // this.smallBlur = new PIXI.filters.BlurFilter(10, 2, 0.5, 5);
         this.smallBlur.blendMode = PIXI.BLEND_MODES.ADD;
-        this.largeBlur = new PIXI.filters.BlurFilter(500,1,1,5);
+        this.largeBlur = new PIXI.filters.BlurFilter(400,1,1,5);
         this.largeBlur.repeatEdgePixels = false;
         this.largeBlur.blendMode = PIXI.BLEND_MODES.ADD;
 
@@ -237,9 +237,9 @@ class Wall extends PIXI.Container {
         // Perform JFA to generate a Nearest Neighbour map
         let inBuffer = this.bufferA;
         let outBuffer = this.bufferB;
-        for(let i = 7; i >= 0; i--) {
+        for(let i = 6; i >= 0; i--) {
             this.jfaUniforms.uTexIn = inBuffer;
-            this.jfaUniforms.step = Math.pow(2, i);
+            this.jfaUniforms.step = Math.pow(2, i) * 5;
             G.renderer.render(this.jfaQuad, outBuffer);
             [inBuffer, outBuffer] = [outBuffer, inBuffer];
         }
