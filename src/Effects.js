@@ -28,7 +28,7 @@ const spriteFragment = `
         gl_FragColor.rgb += + vec3(0.1, 0.1, 0.1);
         // gl_FragColor.g = 1.0;
         // gl_FragColor.rg = vTextureCoord;
-        gl_FragColor *= color.a *color.a* 5.0;
+        gl_FragColor *= color.a *color.a* 10.0;
 }`;
 
 const expBlend = `
@@ -41,10 +41,8 @@ const expBlend = `
         vec4 colorA = texture2D(uTextureA, vTextureCoord);
         vec4 colorB = texture2D(uTextureB, vTextureCoord);
         // colorB /= max(max(colorB.r, colorB.g), colorB.b);
-        float lum = (colorA.r + colorA.r + colorA.r + colorA.b + colorA.g + colorA.g + colorA.g + colorA.g) / 8.0;
-        gl_FragColor = vec4(mix(colorA, colorB, pow(colorA.a * (1.0 - lum), 0.4)).rgb, colorA.a);
-        // gl_FragColor = vec4(mix(colorA, colorB, colorA.a + (1.0 - lum)).rgb, colorA.a);
-        // gl_FragColor.rgb /= max(max(gl_FragColor.r, gl_FragColor.g), gl_FragColor.b);
+        // float lum = (colorA.r + colorA.r + colorA.r + colorA.b + colorA.g + colorA.g + colorA.g + colorA.g) / 8.0;
+        gl_FragColor = vec4(mix(colorA, colorB, pow(colorA.a, 0.3)).rgb, colorA.a);
     }
 `;
 
@@ -174,7 +172,7 @@ const fragmentVoronoi = `
     void main(void) {
         vec2 nn = texture2D(uNN, vUvs).SOURCE;
         gl_FragColor = texture2D(uLights, nn);
-        gl_FragColor.a = length((nn -vUvs) * dim) / RADIUS;
+        gl_FragColor.a = length((nn -vUvs) * dim) * RADIUS;
     }
 `;
 
@@ -254,7 +252,7 @@ const fragmentNormal = `
                                 mix(dot(LA, N) * mix(texture2D(uTexture,uv).rgb, lightColorA.rgb, 0.7),
                                     specularA * lightColorA.rgb, 0.3) * influenceA,
                                 mix(dot(LB, N) * mix(texture2D(uTexture,uv).rgb, lightColorB.rgb, 0.6),
-                                    specularB * lightColorB.rgb, 0.8) * influenceB * 15.0,
+                                    specularB * lightColorB.rgb, 0.8) * influenceB * 2.0,
                                 0.5
                             )
                             * pow(texture2D(uAmbient, uv).r, 1.5) * 2.0, 1.0);
@@ -329,5 +327,5 @@ const fragmentNormal = `
     `;
 
 function voronoiShader(source, radius, uniforms) {
-    return new PIXI.Shader.from(vertexShader, fragmentVoronoi.replace(/SOURCE/g, source).replace(/RADIUS/g, radius.toFixed(1)), uniforms);
+    return new PIXI.Shader.from(vertexShader, fragmentVoronoi.replace(/SOURCE/g, source).replace(/RADIUS/g, (1/radius).toFixed(20)), uniforms);
 }

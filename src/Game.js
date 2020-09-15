@@ -81,9 +81,9 @@ class Game extends PIXI.Application {
 
         
 
-        for (let i = 0; i < 1; i++) {
-            this.list.add(new Chest());      
-        }
+        // for (let i = 0; i < 1; i++) {
+        //     this.list.add(new Chest());      
+        // }
 
 
         // this.test = new Sphere();
@@ -172,9 +172,10 @@ class Wall extends PIXI.Container {
     constructor() {
         super();
 
-        const options = {resolution: 0.2, width: G.w, height: G.h, scaleMode: PIXI.SCALE_MODES.NEAREST, type: PIXI.TYPES.FLOAT};
+        const options = {resolution: 0.1, width: G.w, height: G.h, scaleMode: PIXI.SCALE_MODES.NEAREST, type: PIXI.TYPES.FLOAT};
         this.bufferA = PIXI.RenderTexture.create(options);
         this.bufferB = PIXI.RenderTexture.create(options);
+        options.scaleMode = PIXI.SCALE_MODES.LINEAR;
         this.bufferC = PIXI.RenderTexture.create(options);
         this.bufferD = PIXI.RenderTexture.create(options);
 
@@ -207,15 +208,15 @@ class Wall extends PIXI.Container {
         this.lightBlendUniforms = {uTextureA: this.bufferA, uTextureB: this.bufferB};
         this.lightBlend = new PIXI.Filter(spriteVertex, expBlend, this.lightBlendUniforms);
         this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 2, true);
-        this.smallBlur.pixelSize = [3,3];
-        // this.smallBlur = new PIXI.filters.BlurFilter(10, 2, 0.5, 5);
+        this.smallBlur.pixelSize = [1,1];
+        // this.smallBlur = new PIXI.filters.BlurFilter(10, 2, 1, 5);
         this.smallBlur.blendMode = PIXI.BLEND_MODES.ADD;
-        this.largeBlur = new PIXI.filters.BlurFilter(400,1,1,5);
-        this.largeBlur.repeatEdgePixels = false;
+        this.largeBlur = new PIXI.filters.BlurFilter(200,3,0.05,15);
+        this.largeBlur.repeatEdgePixels = true;
         this.largeBlur.blendMode = PIXI.BLEND_MODES.ADD;
 
         this.voronoiUniforms = {uNN: this.bufferA, uLights: this.bufferC, dim: G.dim};
-        this.voronoiShaderA = voronoiShader("rg", 500.0, this.voronoiUniforms);
+        this.voronoiShaderA = voronoiShader("rg", 300.0, this.voronoiUniforms);
         this.voronoiShaderB = voronoiShader("ba", 100.0, this.voronoiUniforms);
         this.voronoiQuad = new PIXI.Mesh(G.geometry, this.voronoiShaderA);
         this.voronoiQuad.filters = [this.smallBlur];
@@ -287,7 +288,7 @@ class Wall extends PIXI.Container {
 
 class Cursor extends GameObject {
     constructor() {
-        const sprite = new PIXI.Sprite.from(G.star);
+        const sprite = new PIXI.Sprite.from(G.bar);
         super(sprite);
         // sprite.visible = false;
     }
