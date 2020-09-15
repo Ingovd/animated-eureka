@@ -254,11 +254,10 @@ const fragmentNormal = `
                                 mix(dot(LA, N) * mix(texture2D(uTexture,uv).rgb, lightColorA.rgb, 0.7),
                                     specularA * lightColorA.rgb, 0.3) * influenceA,
                                 mix(dot(LB, N) * mix(texture2D(uTexture,uv).rgb, lightColorB.rgb, 0.6),
-                                    specularB * lightColorB.rgb, 0.3) * influenceB,
-                                0.3
+                                    specularB * lightColorB.rgb, 0.8) * influenceB * 15.0,
+                                0.5
                             )
                             * pow(texture2D(uAmbient, uv).r, 1.5) * 2.0, 1.0);
-        // gl_FragColor = texture2D(uLightB, vUvs);
     }`;
 
 

@@ -1,9 +1,33 @@
 class Game extends PIXI.Application {
-    constructor(options) {
-        super(options);
+    constructor(appOptions) {
+        super(appOptions);
         this.gameObjects = [];
         this.animations = [];
         this.load();
+        
+        this.w = window.innerWidth;
+        this.h = window.innerHeight;
+        this.dim = [this.w, this.h];
+        const xPixel = -0.5 / this.w;
+        const yPixel = -0.5 / this.h;
+        this.geometry = new PIXI.Geometry()
+        .addAttribute('aVertexPosition', // the attribute name
+            [0, 0, // x, y
+                this.w, 0, // x, y
+                this.w, this.h,
+                0, this.h], // x, y
+            2) // the size of the attribute
+        .addAttribute('aUvs', // the attribute name
+            [xPixel, yPixel, // u, v
+                1 + xPixel, yPixel, // u, v
+                1 + xPixel, 1 + yPixel,
+                xPixel, 1 + yPixel], // u, v
+            2) // the size of the attribute
+        .addIndex([0, 1, 2, 0, 2, 3]);
+
+        const options = {width: this.w, height: this.h, scaleMode: PIXI.SCALE_MODES.NEAREST};
+        this.lightBufferA = PIXI.RenderTexture.create(options);
+        this.lightBufferB = PIXI.RenderTexture.create(options);
     }
 
     load() {
@@ -49,7 +73,7 @@ class Game extends PIXI.Application {
         // this.stage.filters = [new PIXI.filters.AdvancedBloomFilter()];
         // this.stage.filters= [new PIXI.filters.BlurFilter()];
 
-        this.background = new Wall(window.innerWidth, window.innerHeight);
+        this.background = new Wall();
         this.stage.addChild(this.background);
 
         this.list = new ListLayout(200);
@@ -57,9 +81,9 @@ class Game extends PIXI.Application {
 
         
 
-        // for (let i = 0; i < 1; i++) {
-        //     this.list.add(new Chest());      
-        // }
+        for (let i = 0; i < 1; i++) {
+            this.list.add(new Chest());      
+        }
 
 
         // this.test = new Sphere();
@@ -96,7 +120,12 @@ class Game extends PIXI.Application {
             element.update(delta);
         });
 
-        this.background.update();
+        this.list.prepareLights();
+        this.renderer.render(this.list, this.lightBufferA);
+        this.list.prepareEffects();
+        this.renderer.render(this.cursor, this.lightBufferB);
+        this.background.illuminate(this.lightBufferA, this.lightBufferB);
+        this.list.overExpose();
     }
 
     resizeRenderer(){
@@ -118,8 +147,17 @@ class ListLayout extends PIXI.Container {
         this.addChild(element);
     }
 
+    prepareLights() {
+        this.filters = [];
+        // Clear filters for all lights
+    }
+
+    prepareEffects() {
+
+    }
+
     overExpose() {
-        this.filters= [new PIXI.filters.BlurFilter(1, 2, 1, 15), new PIXI.Filter(spriteVertex, spriteFragment)];
+        this.filters = [new PIXI.filters.BlurFilter(1, 2, 1, 15), new PIXI.Filter(spriteVertex, spriteFragment)];
     }
 
     center() {
@@ -131,32 +169,10 @@ class ListLayout extends PIXI.Container {
 }
 
 class Wall extends PIXI.Container {
-    constructor(width, height) {
+    constructor() {
         super();
-        this.w = width;
-        this.h = height;
-        this.dim = [this.w, this.h];
-        console.log(width)
-        console.log(this.w)
-        const size = 1.5 / Math.min(width, height);
-        const xPixel = -0.5 / width;
-        const yPixel = -0.5 / height;
-        this.geometry = new PIXI.Geometry()
-        .addAttribute('aVertexPosition', // the attribute name
-            [0, 0, // x, y
-                this.w, 0, // x, y
-                this.w, this.h,
-                0, this.h], // x, y
-            2) // the size of the attribute
-        .addAttribute('aUvs', // the attribute name
-            [xPixel, yPixel, // u, v
-                1 + xPixel, yPixel, // u, v
-                1 + xPixel, 1 + yPixel,
-                xPixel, 1 + yPixel], // u, v
-            2) // the size of the attribute
-        .addIndex([0, 1, 2, 0, 2, 3]);
 
-        const options = {width: this.w, height: this.h, scaleMode: PIXI.SCALE_MODES.NEAREST, type: PIXI.TYPES.FLOAT};
+        const options = {width: G.w, height: G.h, scaleMode: PIXI.SCALE_MODES.NEAREST, type: PIXI.TYPES.FLOAT};
         this.bufferA = PIXI.RenderTexture.create(options);
         this.bufferB = PIXI.RenderTexture.create(options);
         this.bufferC = PIXI.RenderTexture.create(options);
@@ -173,35 +189,35 @@ class Wall extends PIXI.Container {
                           uLightNear: this.bufferC,
                           uLightFar: this.bufferC,
                           uLightDir: this.bufferB,
-                          uX: 0.0, uY: 0.0, dim: this.dim};
+                          uX: 0.0, uY: 0.0, dim: G.dim};
         const shader = new PIXI.Shader.from(vertexShader, fragmentNormal, this.uniforms);
-        const wallQuad = new PIXI.Mesh(this.geometry, shader);
+        const wallQuad = new PIXI.Mesh(G.geometry, shader);
         this.addChild(wallQuad);
         
-        this.positionUniforms = {lightA: this.bufferC, lightB: this.bufferD, dim: this.dim};
+        this.positionUniforms = {lightA: this.bufferC, lightB: this.bufferD, dim: G.dim};
         const positionShader = new PIXI.Shader.from(vertexShader, positionFragment, this.positionUniforms);
-        this.positionQuad = new PIXI.Mesh(this.geometry, positionShader);
+        this.positionQuad = new PIXI.Mesh(G.geometry, positionShader);
         // this.addChild(this.positionQuad);
 
-        this.jfaUniforms = {uTexIn: this.bufferA, step: 0.0, dim: this.dim};
+        this.jfaUniforms = {uTexIn: this.bufferA, step: 0.0, dim: G.dim};
         const jfaShader = new PIXI.Shader.from(vertexShader, jfaFragment, this.jfaUniforms);
-        this.jfaQuad = new PIXI.Mesh(this.geometry, jfaShader);
+        this.jfaQuad = new PIXI.Mesh(G.geometry, jfaShader);
         // this.addChild(this.jfaQuad);
         
         this.lightBlendUniforms = {uTextureA: this.bufferA, uTextureB: this.bufferB};
         this.lightBlend = new PIXI.Filter(spriteVertex, expBlend, this.lightBlendUniforms);
-        this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 8, true);
+        this.smallBlur = new PIXI.filters.KawaseBlurFilter(4, 4, true);
         this.smallBlur.pixelSize = [6,6];
         // this.smallBlur = new PIXI.filters.BlurFilter(10, 2, 0.5, 5);
         this.smallBlur.blendMode = PIXI.BLEND_MODES.ADD;
-        this.largeBlur = new PIXI.filters.BlurFilter(500,5,1,5);
+        this.largeBlur = new PIXI.filters.BlurFilter(500,1,1,5);
         this.largeBlur.repeatEdgePixels = false;
         this.largeBlur.blendMode = PIXI.BLEND_MODES.ADD;
 
-        this.voronoiUniforms = {uNN: this.bufferA, uLights: this.bufferC, dim: this.dim};
+        this.voronoiUniforms = {uNN: this.bufferA, uLights: this.bufferC, dim: G.dim};
         this.voronoiShaderA = voronoiShader("rg", 500.0, this.voronoiUniforms);
         this.voronoiShaderB = voronoiShader("ba", 100.0, this.voronoiUniforms);
-        this.voronoiQuad = new PIXI.Mesh(this.geometry, this.voronoiShaderA);
+        this.voronoiQuad = new PIXI.Mesh(G.geometry, this.voronoiShaderA);
         this.voronoiQuad.filters = [this.smallBlur];
         // this.addChild(this.voronoiQuad);
 
@@ -210,25 +226,18 @@ class Wall extends PIXI.Container {
         // this.addChild(this.blurSprite);
     }
 
-    update() {
-        this.uniforms.uValue = 1.0;
-        this.uniforms.uX = G.renderer.plugins.interaction.mouse.global.x;
-        this.uniforms.uY = G.renderer.plugins.interaction.mouse.global.y;
-
+    illuminate(lightsA, lightsB) {
         // Render the XY-positions of each pixel light source
         // from two light layers
-        G.list.filters = [];
-        G.renderer.render(G.list, this.bufferC);
-        G.renderer.render(G.cursor, this.bufferD);
-        this.positionUniforms.lightA = this.bufferC;
-        this.positionUniforms.lightB = this.bufferD;
+        this.positionUniforms.lightA = lightsA;
+        this.positionUniforms.lightB = lightsB;
         G.renderer.render(this.positionQuad, this.bufferA);
         // return;
 
         // Perform JFA to generate a Nearest Neighbour map
         let inBuffer = this.bufferA;
         let outBuffer = this.bufferB;
-        for(let i = 10; i >= 0; i--) {
+        for(let i = 7; i >= 0; i--) {
             this.jfaUniforms.uTexIn = inBuffer;
             this.jfaUniforms.step = Math.pow(2, i);
             G.renderer.render(this.jfaQuad, outBuffer);
@@ -239,10 +248,8 @@ class Wall extends PIXI.Container {
         // return;
 
         // Colour the NN map by the nearest light source
-        G.renderer.render(G.list, this.bufferC);
-        G.list.filters = [];
         this.voronoiUniforms.uNN = this.bufferA;
-        this.voronoiUniforms.uLights = this.bufferC;
+        this.voronoiUniforms.uLights = lightsA;
         this.voronoiQuad.shader = this.voronoiShaderA;
         G.renderer.render(this.voronoiQuad, this.bufferB); // B holds blurred near-lightA
         // return;
@@ -260,9 +267,7 @@ class Wall extends PIXI.Container {
         G.renderer.render(this.blurSprite, this.ungsignedBuffer); // D holds lightA
         // return;
 
-        G.renderer.render(G.cursor, this.bufferB);
-        G.cursor.filters = [];
-        this.voronoiUniforms.uLights = this.bufferB;
+        this.voronoiUniforms.uLights = lightsB;
         this.voronoiQuad.shader = this.voronoiShaderB;
         G.renderer.render(this.voronoiQuad, this.bufferC); // C holds blurred near-lightB
         // return;
@@ -277,10 +282,6 @@ class Wall extends PIXI.Container {
         this.uniforms.uLightDir = this.bufferB;
         this.uniforms.uLightA = this.ungsignedBuffer;
         this.uniforms.uLightB = this.bufferC;
-
-        G.list.overExpose();
-
-        // G.ticker.stop();
     }
 }
 
@@ -314,7 +315,9 @@ class Chest extends InteractiveObject {
 
         var self = this;
         this.dfa.addOnEnter("active", function() {
-            console.log("bla");
+            for (let i = 0; i < 100; i++) {
+                self.addChild(self.generateItem());
+            }
             self.timer = setTimeout(self.action.bind(self), 1000);
         });
         this.dfa.addOnExit("active", function() {
@@ -323,7 +326,6 @@ class Chest extends InteractiveObject {
     }
 
     action() {
-        console.log("blabla");
         this.displayObject.texture = G.opened;
         this.addChild(this.generateItem());
     }
@@ -346,14 +348,14 @@ class Item extends GameObject {
         this.v = {x: Math.random() - 0.5, y: Math.random() - 0.5};
         // this.v = {x: 0.0, y: -1.0};
         const l = Math.pow(this.v.x * this.v.x + this.v.y * this.v.y, 0.5);
-        this.v.x *= 20 / l;
-        this.v.y *= 20 / l;
+        this.v.x *= (Math.random() + 0.5) * 12 / l;
+        this.v.y *= (Math.random() + 0.5) * 12 / l;
     }
 
     update() {
         this.position.x += this.v.x;
         this.position.y += this.v.y;
-        this.v.y += 0.5;
+        this.v.y += 0.4;
     }
 }
 
