@@ -28,7 +28,7 @@ const spriteFragment = `
         gl_FragColor.rgb += + vec3(0.2, 0.2, 0.2);
         // gl_FragColor.g = 1.0;
         // gl_FragColor.rg = vTextureCoord;
-        gl_FragColor *= color.a * 2.0;
+        gl_FragColor *= color.a * color.a * 4.0;
 }`;
 
 const expBlend = `
@@ -40,9 +40,9 @@ const expBlend = `
     void main(void) {
         vec4 colorA = texture2D(uTextureA, vTextureCoord);
         vec4 colorB = texture2D(uTextureB, vTextureCoord);
-        // colorB /= max(max(colorB.r, colorB.g), colorB.b);
-        // float lum = (colorA.r + colorA.r + colorA.r + colorA.b + colorA.g + colorA.g + colorA.g + colorA.g) / 8.0;
-        gl_FragColor = vec4(mix(colorA, colorB, pow(colorA.a, 0.3)).rgb, colorA.a);
+        colorB /= max(max(colorB.r, colorB.g), colorB.b);
+        float lum = (colorA.r + colorA.r + colorA.r + colorA.b + colorA.g + colorA.g + colorA.g + colorA.g) / 8.0;
+        gl_FragColor = vec4(mix(colorA, colorB, pow(colorA.a * lum, 0.25)).rgb, colorA.a);
     }
 `;
 
@@ -248,12 +248,9 @@ const fragmentNormal = `
         float influenceB = 1.0 - lightColorB.a;
         lightColorB *= influenceB;
 
-        gl_FragColor = vec4(mix(
-                                mix(dot(LA, N) * mix(texture2D(uTexture,uv).rgb, lightColorA.rgb, 0.7),
-                                    specularA * lightColorA.rgb, 0.3) * influenceA,
-                                mix(dot(LB, N) * mix(texture2D(uTexture,uv).rgb, lightColorB.rgb, 0.6),
-                                    specularB * lightColorB.rgb, 0.8) * influenceB * 2.0,
-                                0.5
+        gl_FragColor = vec4((texture2D(uTexture,uv).rgb * 0.1 +
+                                mix(dot(LA, N) * lightColorA.rgb, specularA * lightColorA.rgb, 0.3) * influenceA +
+                                mix(dot(LB, N) * lightColorB.rgb, specularB * lightColorB.rgb, 0.5) * influenceB
                             )
                             * pow(texture2D(uAmbient, uv).r, 1.5) * 2.0, 1.0);
     }`;

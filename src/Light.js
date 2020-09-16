@@ -4,7 +4,6 @@ class Light extends InteractiveObject {
         sprite.anchor.set(0.5);
         super(sprite);
         this.uniforms = {delta: 0};
-        this.overExpose = new PIXI.Filter(spriteVertex, spriteFragment, this.uniforms);
         this.displayObject.filters = [];
         this.t = t;
 
@@ -30,38 +29,64 @@ class Light extends InteractiveObject {
     }
 }
 
+class NeonLight extends GameObject {
+    constructor(row, nrTubes, color) {
+        super();
+        this.tubes = [];
+        for(let i = 1; i <= nrTubes; i++) {
+            const tube = new NeonTube(i, row, color);
+            this.tubes.push(tube);
+            this.addChild(tube);
+        }
+    }
+
+    prepareLights() {
+        this.tubes.forEach(tube => {
+            tube.sprite.visible = false;
+            tube.lightSprite.visible = true;
+        });
+    }
+
+    prepareSprites() {
+        this.tubes.forEach(tube => {
+            tube.sprite.visible = true;
+            tube.lightSprite.visible = false;
+        });
+    }
+}
+
 class NeonTube extends GameObject {
-    constructor(sprite) {
-        super(sprite);
+    constructor(x, y, c) {
+        super();
+        const size = 250;
+        const rect = new PIXI.Rectangle(size * x, size * y, size, size);
+        this.sprite = new PIXI.Sprite.from(new PIXI.Texture(G.items, rect));
+        this.addChild(this.sprite);
+        this.lightSprite = new PIXI.Sprite.from(new PIXI.Texture(G.item_lights, rect));
+        this.addChild(this.lightSprite);
         this.t = 0;
+        this.speed = Math.random() * 0.05;
 
         this.colorMatrix = [
-            1, 0, 0, 0, 0,
-            0, 1, 0, 0, 0,
-            0, 0, 1, 0, 0,
+            c.r, 0, 0, 0, 0,
+            0, c.g, 0, 0, 0,
+            0, 0, c.b, 0, 0,
             0, 0, 0, 1, 0
         ];
 
         this.matrixFilter = new PIXI.filters.ColorMatrixFilter();
-        this.matrixFilter.matrix = this.colorMatrix;
-        this.matrixFilter.brightness(1, false);
-
-        this.lightMode();
-    }
-
-    brighten(b, multiply = false) {
-        this.matrixFilter.brightness(b, multiply);
-    }
-
-    lightMode() {
         this.filters = [this.matrixFilter];
+
+        this.brighten(1.0);
     }
 
-    spriteMode() {
-        this.filters = [];
+    brighten(b) {
+        this.matrixFilter.matrix = this.colorMatrix;
+        this.matrixFilter.brightness(b, true);
     }
 
     update() {
-        
+        this.t += this.speed;
+        this.brighten(Math.round((Math.sin(this.t))));
     }
 }

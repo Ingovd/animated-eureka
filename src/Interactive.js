@@ -11,8 +11,12 @@ const interactive = {
 class GameObject extends PIXI.Container {
     constructor(displayObject) {
         super();
-        this.displayObject = displayObject;
-        this.addChild(displayObject);
+        if(displayObject) {
+            this.displayObject = displayObject;
+            this.addChild(displayObject);
+        } else {
+            this.displayObject = this;
+        }
 
         G.gameObjects.push(this);
     }
@@ -23,13 +27,13 @@ class GameObject extends PIXI.Container {
     }
 
     update() {
-        this.updateTransform();
+        
     }
 }
 
 class InteractiveObject extends GameObject{
-    constructor(texture) {
-        super(texture);
+    constructor(displayObject) {
+        super(displayObject);
         this.dfa = new State("idle", interactive.states, interactive.transitions);
 
         this.mouse = null;

@@ -39,7 +39,8 @@ class Game extends PIXI.Application {
                    .add('star', "assets/sprites/item_star.png")
                    .add('eureka', "assets/neon/eureka_rainbow.png")
                    .add('bar', "assets/neon/bar.png")
-                   .add('items', "assets/neon/items.png")
+                   .add('items', "assets/neon/item_map.png")
+                   .add('item_lights', "assets/neon/item_map_light.png")
                    .add('wall_color', "assets/wall/wall_baseColor.jpg")
                    .add('wall_normal', "assets/wall/wall_normal.jpg")
                    .add('wall_roughness', "assets/wall/wall_roughness.jpg")
@@ -56,6 +57,7 @@ class Game extends PIXI.Application {
             G.eureka = resources.eureka.texture;
             G.bar = resources.bar.texture;
             G.items = resources.items.texture;
+            G.item_lights = resources.item_lights.texture;
 
             G.wall_color = resources.wall_color.texture;
             G.wall_color.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
@@ -78,7 +80,7 @@ class Game extends PIXI.Application {
         this.background = new Wall();
         this.stage.addChild(this.background);
 
-        this.list = new ListLayout(200);
+        this.list = new ListLayout(0);
         this.stage.addChild(this.list);
 
         
@@ -95,10 +97,12 @@ class Game extends PIXI.Application {
         // this.list.add(new Light(Math.PI*2/3));
         // this.list.add(new Light(Math.PI*4/3));
 
-        this.list.add(new NeonTube(new PIXI.Sprite.from(G.items)));
-        const tube2 = new NeonTube(new PIXI.Sprite.from(G.bar));
-        tube2.t = Math.PI;
-        // this.list.add(tube2);
+        const neonLight = new NeonLight(0, 7, {r: 1.0, g: 0.0, b: 0.0});
+        this.list.add(neonLight);
+        const neon2 = new NeonLight(1, 7, {r: 0.0, g: 1.0, b: 0.0});
+        this.list.add(neon2);
+        const neon3 = new NeonLight(2, 4, {r: 0.0, g: 0.0, b: 1.0});
+        this.list.add(neon3);
 
         this.cursor = new Cursor();
         this.stage.addChild(this.cursor);
@@ -127,7 +131,7 @@ class Game extends PIXI.Application {
         this.list.prepareEffects();
         this.renderer.render(this.cursor, this.lightBufferB);
         this.background.illuminate(this.lightBufferA, this.lightBufferB);
-        this.list.overExpose();
+        this.list.prepareSprites();
     }
 
     resizeRenderer(){
@@ -142,24 +146,32 @@ class ListLayout extends PIXI.Container {
     constructor(space) {
         super();
         this.space = space;
+        this.scale.set(2);
+        this.lights = [];
     }
 
     add(element) {
         element.position.x = this.children.length * this.space;
+        this.lights.push(element);
         this.addChild(element);
     }
 
     prepareLights() {
         this.filters = [];
-        // Clear filters for all lights
+        this.lights.forEach(light => {
+            light.prepareLights();
+        });
     }
 
     prepareEffects() {
 
     }
 
-    overExpose() {
-        this.filters = [new PIXI.filters.BlurFilter(1, 1, 1, 15), new PIXI.Filter(spriteVertex, spriteFragment)];
+    prepareSprites() {
+        this.filters = [new PIXI.filters.BlurFilter(1, 1, 1, 5), new PIXI.Filter(spriteVertex, spriteFragment)];
+        this.lights.forEach(light => {
+            light.prepareSprites();
+        });
     }
 
     center() {
