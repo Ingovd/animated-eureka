@@ -20,16 +20,16 @@ class State {
         return this.current == state;
     }
 
-    transition(symbol) {
-        const s = this.states[this.current];
-        const next = s.transitions[symbol];
+    enterState(next) {
         if(!next)
             return;
-
-        s.onExit.forEach(callback => {callback(this.current, next)});
+        this.states[this.current].onExit.forEach(callback => {callback(this.current, next)});
         this.states[next].onEnter.forEach(callback => {callback(this.current, next)});
-
         this.current = next;
+    }
+
+    transition(symbol) {
+        this.enterState(this.states[this.current].transitions[symbol]);
     }
 
     addOnState(state, callback) {

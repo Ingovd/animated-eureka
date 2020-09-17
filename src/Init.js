@@ -14,7 +14,7 @@ var G = new Game({
     height: window.innerHeight,
     resolution: window.devicePixelRatio,
     autoDensity: true,
-    antialias: false,
+    antialias: true,
     sharedTicker: true,
     sharedLoader: true
 });

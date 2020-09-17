@@ -9,31 +9,24 @@ const interactive = {
 };
 
 class GameObject extends PIXI.Container {
-    constructor(displayObject) {
+    constructor() {
         super();
-        if(displayObject) {
-            this.displayObject = displayObject;
-            this.addChild(displayObject);
-        } else {
-            this.displayObject = this;
-        }
-
         G.gameObjects.push(this);
     }
 
     addAnimation(animation) {
-        this.displayObject.parent.addChild(animation);
-        animation.addChild(this.displayObject);
+        this.parent.addChild(animation);
+        animation.addChild(this);
     }
 
     update() {
-        
+
     }
 }
 
 class InteractiveObject extends GameObject{
-    constructor(displayObject) {
-        super(displayObject);
+    constructor() {
+        super();
         this.dfa = new State("idle", interactive.states, interactive.transitions);
 
         this.mouse = null;

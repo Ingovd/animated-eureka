@@ -1,71 +1,55 @@
-class Light extends InteractiveObject {
-    constructor(t) {
-        const sprite = new PIXI.Sprite.from(G.eureka);
-        sprite.anchor.set(0.5);
-        super(sprite);
-        this.uniforms = {delta: 0};
-        this.displayObject.filters = [];
-        this.t = t;
+const tubeState = {
+    states: ["on", "off", "broken"],
+    transitions: [{start: "on", target: "off", symbol: "switchOff"},
+                  {start: "off", target: "on", symbol: "switchOn"},
+                  {start: "on", target: "broken", symbol: "break"},
+                  {start: "off", target: "broken", symbol: "break"}]
+};
 
-        const activeWiggle = new RotationAnimation(new Oscillation(0.05, 1.0, 0));
-        const activeAnimation = new TransitionAnimation(this.dfa, {active: activeWiggle});
-        this.addAnimation(activeAnimation);
+const lightState = {
 
-        var self = this;
-        this.dfa.addOnEnter("selected", function() {
-            sprite.visible = false;
-        });
-        this.dfa.addOnEnter("active", function() {
-            sprite.visible = true;
-        });
-        this.dfa.addOnEnter("idle", function() {
-            sprite.visible = true;
-        });
-    }
-
-    update() {
-        this.t += 0.005
-        this.uniforms.delta = Math.sin(this.t);
-    }
 }
 
 class NeonLight extends GameObject {
-    constructor(row, nrTubes, color) {
+    constructor(texture, row, nrTubes, color) {
         super();
         this.tubes = [];
+        this.speed = Math.random() * 0.1;
         for(let i = 1; i <= nrTubes; i++) {
-            const tube = new NeonTube(i, row, color);
+            const tube = new NeonTube(texture, i, row, color);
+            tube.speed = this.speed;
             this.tubes.push(tube);
             this.addChild(tube);
         }
+        this.switch(true);
     }
 
-    prepareLights() {
-        this.tubes.forEach(tube => {
-            tube.sprite.visible = false;
-            tube.lightSprite.visible = true;
+    setOnStates(dfa, states) {
+        const self = this;
+        states.forEach(state => {
+            dfa.addOnEnter(state, function() {
+                self.switch(true);
+            })
+            dfa.addOnExit(state, function() {
+                self.switch(false);
+            })
         });
     }
 
-    prepareSprites() {
+    switch(on) {
         this.tubes.forEach(tube => {
-            tube.sprite.visible = true;
-            tube.lightSprite.visible = false;
+            tube.state.transition(on?"switchOn":"switchOff");
         });
     }
 }
 
 class NeonTube extends GameObject {
-    constructor(x, y, c) {
+    constructor(texture, x, y, c) {
         super();
-        const size = 250;
+        const size = 500;
         const rect = new PIXI.Rectangle(size * x, size * y, size, size);
-        this.sprite = new PIXI.Sprite.from(new PIXI.Texture(G.items, rect));
+        this.sprite = new PIXI.Sprite.from(new PIXI.Texture(texture, rect));
         this.addChild(this.sprite);
-        this.lightSprite = new PIXI.Sprite.from(new PIXI.Texture(G.item_lights, rect));
-        this.addChild(this.lightSprite);
-        this.t = 0;
-        this.speed = Math.random() * 0.05;
 
         this.colorMatrix = [
             c.r, 0, 0, 0, 0,
@@ -73,20 +57,24 @@ class NeonTube extends GameObject {
             0, 0, c.b, 0, 0,
             0, 0, 0, 1, 0
         ];
-
         this.matrixFilter = new PIXI.filters.ColorMatrixFilter();
         this.filters = [this.matrixFilter];
-
-        this.brighten(1.0);
+        
+        this.state = new State("off", tubeState.states, tubeState.transitions);
+        let self = this;
+        this.state.addOnEnter("on", function() {
+            self.brighten(1.0);
+        });
+        this.state.addOnEnter("off", function() {
+            self.brighten(0.0);
+        });
+        this.state.addOnState("broken", function() {
+            
+        });
     }
 
     brighten(b) {
         this.matrixFilter.matrix = this.colorMatrix;
         this.matrixFilter.brightness(b, true);
-    }
-
-    update() {
-        this.t += this.speed;
-        this.brighten(Math.round((Math.sin(this.t))));
     }
 }
