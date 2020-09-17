@@ -9,7 +9,6 @@ class Animation extends PIXI.Container{
     update(delta) {
         this.t += delta * this.playing;
         this.animate(delta);
-        this.transform.updateLocalTransform();
         return this.active;
     }
 

@@ -57,14 +57,6 @@ class Game extends PIXI.Application {
             G.star = resources.star.texture;
 
             G.particles = resources.particles.texture;
-            G.pTextures = [];
-            for(let i = 0; i < 10; i++) {
-                G.pTextures[i] = [];
-                for(let j = 0; j < 10; j++) {
-                    const rect = new PIXI.Rectangle(j * 15, i * 15, 15, 15);
-                    G.pTextures[i][j] = new PIXI.Texture(G.particles, rect);
-                }
-            }
 
             G.eureka = resources.eureka.texture;
             G.bar = resources.bar.texture;
@@ -93,7 +85,16 @@ class Game extends PIXI.Application {
         this.list.scale.set(1.0);
         this.stage.addChild(this.list);
 
-        this.particleContainer = new PIXI.ParticleContainer(5000);
+        const properties = {vertices: true, position: true, uvs: true};
+        this.nrParticles = 10000;
+        this.particleIndex = 0;
+        this.particleContainer = new PIXI.ParticleContainer(this.nrParticles, properties);
+        this.particlePool = [];
+        for(let i = 0; i < this.nrParticles; i++) {
+            var particle = new Particle();
+            this.particlePool[i] = particle;
+            this.particleContainer.addChild(particle.sprite);
+        }
         this.stage.addChild(this.particleContainer);
 
         this.list.add(new NeonItems);
@@ -107,6 +108,12 @@ class Game extends PIXI.Application {
         this.ticker.add(this.update.bind(this));
         this.ticker.maxFPS = 40;
         this.resizeRenderer();
+    }
+
+    activateParticle(particleID, x, y, v) {
+        this.particlePool[this.particleIndex].activate(particleID, x, y, v);
+        this.particleIndex += 1;
+        this.particleIndex %= this.nrParticles;
     }
 
     update(delta) {
@@ -139,18 +146,32 @@ class Game extends PIXI.Application {
 }
 
 class Particle extends Animation {
-    constructor(particle, x, y, v) {
+    constructor() {
         super();
-        this.particle = particle;
-        this.sprite = new PIXI.Sprite.from(G.pTextures[particle][0]);;
-        G.particleContainer.addChild(this.sprite);
+        this.frame = new PIXI.Rectangle(0,0, 15, 15);
+        this.texture = new PIXI.Texture(G.particles, this.frame);
+        this.sprite = new PIXI.Sprite.from(this.texture);
+        this.position.x = -1000;
+        this.position.y = -1000;
+    }
+
+    activate(particleID, x, y, v) {
+        this.frame.y = particleID * 15;
+        this.frame.x = 0;
         this.sprite.position.set(x, y);
         this.v = v;
+        this.sprite.visible = true;
         this.start();
     }
 
     animate(delta) {
-        this.sprite.texture = G.pTextures[this.particle][Math.min(Math.floor(this.t / 10), 9)];
+        this.frame.x = Math.min(Math.floor(this.t / 30), 9) * 15;
+        if(this.frame.x >= 150) {
+            this.position.x = -1000;
+            this.position.y = -1000;
+            this.stop();
+        }
+        this.texture.updateUvs();
         this.sprite.position.x += this.v.x * delta;
         this.sprite.position.y += this.v.y * delta;
         this.v.y += 0.1 * delta;
@@ -170,11 +191,11 @@ class Cursor extends GameObject {
 
         let particle = Math.floor(Math.random() * 10);
         if(G.renderer.plugins.interaction.mouse.buttons == 1)
-            for(let i = 0; i < 20; i++) {
+            for(let i = 0; i < 100; i++) {
                 let v = {x: Math.sin((i + Math.random()) * Math.PI / 10), y: Math.cos((i + Math.random()) * Math.PI / 10)};
-                v.x *= 4;
-                v.y *= 4;
-                new Particle(9, this.position.x, this.position.y, v);
+                v.x *= 4 + Math.random() * 2;
+                v.y *= 4 + Math.random() * 2;
+                G.activateParticle(9, this.position.x, this.position.y, v);
             }
     }
 }
@@ -191,22 +212,6 @@ class ListLayout extends PIXI.Container {
         element.position.y = this.children.length * this.space;
         this.lights.push(element);
         this.addChild(element);
-    }
-
-    prepareLights() {
-        this.lights.forEach(light => {
-            light.prepareLights();
-        });
-    }
-
-    prepareEffects() {
-
-    }
-
-    prepareSprites() {
-        this.lights.forEach(light => {
-            light.prepareSprites();
-        });
     }
 
     center() {
