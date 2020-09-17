@@ -85,7 +85,7 @@ class Game extends PIXI.Application {
         this.list.scale.set(1.0);
         this.stage.addChild(this.list);
 
-        const properties = {vertices: true, position: true, uvs: true};
+        const properties = {position: true, uvs: true};
         this.nrParticles = 10000;
         this.particleIndex = 0;
         this.particleContainer = new PIXI.ParticleContainer(this.nrParticles, properties);
