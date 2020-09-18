@@ -67,6 +67,16 @@ class Game extends PIXI.Application {
         this.list.scale.set(0.8);
         this.stage.addChild(this.list);
 
+        this.setupScene();
+
+        this.list.center();
+        this.ticker.add(this.update.bind(this));
+        this.ticker.maxFPS = 40;
+        this.resizeRenderer();
+    }
+
+    setupScene() {
+        const self = this;
         const properties = {position: true, uvs: true};
         this.nrParticles = 10000;
         this.particleIndex = 0;
@@ -91,6 +101,7 @@ class Game extends PIXI.Application {
             this.list.add(container);
         }
 
+        // Basic cycle animation before a chest is selected
         const abc = new State("A", cycleSix.states, cycleSix.transitions);
         abc.addState("inactive");
         this.teaseCycle = new Cycler(abc, "next", 40);
@@ -99,7 +110,8 @@ class Game extends PIXI.Application {
         this.items[1].bindStates(abc, {shield: ["B"], sword: ["D"], rupee: ["F"]});
         this.items[2].bindStates(abc, {shield: ["C"], sword: ["E"], rupee: ["A"]});
 
-        
+
+        // For each chest, connect its mouse interactivity to the behaviour of the others
         for(let i = 0; i < 3; i++) {
             this.chests[i].dfa.addOnEnter("clicked", function() {
                 self.teaseCycle.dfa.enterState("inactive");
@@ -123,11 +135,6 @@ class Game extends PIXI.Application {
                 });
             }
         }
-
-        this.list.center();
-        this.ticker.add(this.update.bind(this));
-        this.ticker.maxFPS = 40;
-        this.resizeRenderer();
     }
 
     reset() {

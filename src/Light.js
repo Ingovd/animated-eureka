@@ -27,10 +27,12 @@ class NeonChest extends InteractiveObject {
         this.setIdleAnimation();
     }
 
+
     disable() {
         this.dfa.enterState("off");
         this.idleAnimation.dfa.enterState("notIdle");
     }
+
 
     enable() {
         this.dfa.enterState("idle");
@@ -57,14 +59,21 @@ class NeonChest extends InteractiveObject {
         this.dfa.addOnEnter("active", function () {
             lidState.enterState("notIdle");
         });
+        this.idleAnimation.dfa.enterState("A");
         this.idleAnimation.start();
     }
 
+    /**
+     * Disable the idle animation and visuals connected to mouse interaction
+     */
     stopIdle() {
         this.idleAnimation.dfa.transition("tryA");
         this.idleAnimation.pause();
     }
 
+    /**
+     * Restart the idle animation and mouse interaction
+     */
     startIdle() {
         this.idleAnimation.dfa.transition("tryA");
         this.idleAnimation.play();
