@@ -1,3 +1,6 @@
+/** @class State Class for representing a Deterministic Finite State Automaton (DFA)
+ * Comprises a set of states, where each state can be signalled with a symbol to attempt a transition to another state.
+ */
 class State {
     constructor(initial, states, transitions) {
         this.current = initial;
@@ -10,19 +13,31 @@ class State {
         });
     }
 
+    /**
+     * Clears all callbacks
+     */
     clear() {
         for (const state in this.states) {
-            const element = this.states[state];
-            this.states[state] = {onState: [], onEnter: [], onExit: [], transitions: {}};
+            this.states[state] = {onState: [],
+                                  onEnter: [],
+                                  onExit: [],
+                                  transitions: this.states[state].transitions};
         }
     }
 
+    /**
+     * 
+     * @param {string} state Convenience method for adding a state to this DFA
+     */
     addState(state) {
         if(!this.states[state]) {
             this.states[state] = {onState: [], onEnter: [], onExit: [], transitions: {}};
         }
     }
 
+    /**
+     * Run callbacks for current state.
+     */
     runCurrentState() {
         this.states[this.current].onState.forEach(callback => {
             callback();
@@ -33,6 +48,10 @@ class State {
         return this.current == state;
     }
 
+    /**
+     * 
+     * @param {string} next Forcefully enter a new state without using transitions
+     */
     enterState(next) {
         if(!next)
             return;
@@ -41,6 +60,10 @@ class State {
         this.current = next;
     }
 
+    /**
+     * 
+     * @param {string} symbol Symbol to determine a possible transition out from the current state.
+     */
     transition(symbol) {
         this.enterState(this.states[this.current].transitions[symbol]);
     }

@@ -97,6 +97,9 @@ class NeonItems extends PIXI.Container {
     }
 }
 
+/** @class NeonLight Collection of Neon tubes that have the same behaviour.
+ * A NeonLight instance can be bound to DFA states.
+ */
 class NeonLight extends PIXI.Container {
     constructor(texture, row, nrTubes, color) {
         super();
@@ -109,6 +112,11 @@ class NeonLight extends PIXI.Container {
         }
     }
 
+    /**
+     * 
+     * @param {State} dfa The DFA to bind the lights to
+     * @param {[string]} states The states for which this light needs to shine.
+     */
     setOnStates(dfa, states) {
         const self = this;
         states.forEach(state => {
@@ -121,6 +129,10 @@ class NeonLight extends PIXI.Container {
         });
     }
 
+    /**
+     * 
+     * @param {boolean} on Convenience method for switching all lights on (true) or off (false).
+     */
     switch(on) {
         this.tubes.forEach(tube => {
             tube.state.transition(on?"switchOn":"switchOff");
@@ -128,6 +140,9 @@ class NeonLight extends PIXI.Container {
     }
 }
 
+/** @class NeonTube Smallest possible neon light.
+ * Will take a sprite and a color as input, and can be brightened dynamically.
+ */
 class NeonTube extends PIXI.Container {
     constructor(texture, x, y, c) {
         super();

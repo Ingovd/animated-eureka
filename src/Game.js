@@ -269,7 +269,13 @@ class Particle extends Animation {
     }
 }
 
+/** @class Wall containing all logic for rendering the background */
 class Wall extends PIXI.Container {
+    /**
+     * 
+     * @param {number} resolution The resolution as fraction of renderer
+     * to be used for the render buffers.
+     */
     constructor(resolution) {
         super();
         this.lightRes = resolution;
@@ -328,6 +334,11 @@ class Wall extends PIXI.Container {
         this.blurSprite.filters = [this.largeBlur];
     }
 
+    /**
+     * 
+     * @param {PIXI.Texture} lightsA Neon light source
+     * @param {PIXI.Texture} lightsB Particle light source
+     */
     illuminate(lightsA, lightsB) {
         // Render the XY-positions of each pixel light source
         // from two light layers

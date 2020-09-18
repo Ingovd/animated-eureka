@@ -15,6 +15,7 @@ const cycleTwo = {
                   {start: "B", target: "A", symbol: "tryA"}]
 }
 
+/** @class Cycler Basic animation that cycles through a DFA */
 class Cycler extends Animation {
     constructor(dfa, symbol, threshold = 30) {
         super();
@@ -31,6 +32,9 @@ class Cycler extends Animation {
     }
 }
 
+/** @class DecayBlink Complex animation that starts alternating between states after a delay,
+ * and then stops animating altogether.
+ */
 class DecayBlink extends Animation {
     constructor(states, duration, start, target) {
         super();
@@ -59,7 +63,16 @@ class DecayBlink extends Animation {
     }
 }
 
+/** @class DelayedRepeater Complex animation that will repeatedly signal a callback
+ * after some delay.
+ */
 class DelayedRepeater extends Animation {
+    /**
+     * 
+     * @param {number} delay Time without signalling @param callback
+     * @param {number} interval Period of signalling @param callback
+     * @param {functtion} callback Callback to be signalled
+     */
     constructor(delay, interval, callback) {
         super();
         this.delay = delay;

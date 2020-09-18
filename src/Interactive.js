@@ -9,6 +9,7 @@ const interactive = {
                   {start: "active", target: "idle", symbol: "release"}]
 };
 
+/** @class InteractiveObject Standard object for any PIXI.Container that wishes to have mouse interaction. */
 class InteractiveObject extends PIXI.Container{
     constructor() {
         super();

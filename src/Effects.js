@@ -210,6 +210,7 @@ const fragmentNormal = `
                             * pow(texture2D(uAmbient, uv).r, 1.5), 1.0);
     }`;
 
+/** @function voronoiShader Convenience method for building the parametrized program. */
 function voronoiShader(source, radius, uniforms) {
     const voronoiProgram = fragmentVoronoi
                             .replace(/SOURCE/g, source)
