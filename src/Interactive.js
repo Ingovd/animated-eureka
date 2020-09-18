@@ -1,30 +1,15 @@
 const interactive = {
-    states: ["idle", "selected", "active"],
+    states: ["idle", "selected", "active", "clicked"],
     transitions: [{start: "idle", target: "selected", symbol: "select"},
                   {start: "selected", target: "idle", symbol: "deselect"},
                   {start: "selected", target: "idle", symbol: "release"},
                   {start: "selected", target: "active", symbol: "activate"},
-                  {start: "active", target: "selected", symbol: "deactivate"},
+                  {start: "active", target: "clicked", symbol: "deactivate"},
+                  {start: "active", target: "idle", symbol: "deselect"},
                   {start: "active", target: "idle", symbol: "release"}]
 };
 
-class GameObject extends PIXI.Container {
-    constructor() {
-        super();
-        G.gameObjects.push(this);
-    }
-
-    addAnimation(animation) {
-        this.parent.addChild(animation);
-        animation.addChild(this);
-    }
-
-    update() {
-
-    }
-}
-
-class InteractiveObject extends GameObject{
+class InteractiveObject extends PIXI.Container{
     constructor() {
         super();
         this.dfa = new State("idle", interactive.states, interactive.transitions);
@@ -33,6 +18,8 @@ class InteractiveObject extends GameObject{
         this.interactive = true;
         this.buttonMode = true;
         this.hitArea = this.getLocalBounds();
+
+        G.ticker.add(this.update.bind(this));
     }
 
     update() {

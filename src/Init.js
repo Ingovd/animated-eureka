@@ -9,15 +9,11 @@ PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
 
 var G = new Game({
     view: canvas,
-    backgroundColor: 0x1099bb,
+    backgroundColor: 0x000000,
     width: window.innerWidth,
     height: window.innerHeight,
-    resolution: window.devicePixelRatio,
-    autoDensity: true,
     antialias: true,
     sharedTicker: true,
     sharedLoader: true
 });
 window.addEventListener('resize', G.resizeRenderer.bind(G));
-
-// document.addEventListener("DOMContentLoaded", G.init.bind(G), false);

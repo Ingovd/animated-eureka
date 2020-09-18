@@ -3,11 +3,24 @@ class State {
         this.current = initial;
         this.states = {};
         states.forEach(state => {
-            this.states[state] = {onState: [], onEnter: [], onExit: [], transitions: {}};
+            this.addState(state);
         });
         transitions.forEach(transition => {
             this.states[transition.start].transitions[transition.symbol] = transition.target;
         });
+    }
+
+    clear() {
+        for (const state in this.states) {
+            const element = this.states[state];
+            this.states[state] = {onState: [], onEnter: [], onExit: [], transitions: {}};
+        }
+    }
+
+    addState(state) {
+        if(!this.states[state]) {
+            this.states[state] = {onState: [], onEnter: [], onExit: [], transitions: {}};
+        }
     }
 
     runCurrentState() {

@@ -19,9 +19,9 @@ const spriteFragment = `
         vec4 color = texture2D(uSampler, vTextureCoord);
         gl_FragColor = color;
         gl_FragColor.rgb += vec3(color.r + color.b + color.g);
-        gl_FragColor.rgb += vec3(0.2, 0.2, 0.2);
-        gl_FragColor.rgba *= gl_FragColor.a * 2.0;
-        gl_FragColor.a *= 0.5;
+        gl_FragColor.rgb += vec3(0.02, 0.02, 0.02);
+        gl_FragColor.rgb *= gl_FragColor.a * 2.0;
+        gl_FragColor.a *= 0.1;
 }`;
 
 const expBlend = `
@@ -179,7 +179,7 @@ const fragmentNormal = `
     }
 
     void main(void) {
-        vec2 uv = vVertexPosition / dim * (dim / min(dim.x, dim.y));
+        vec2 uv = vVertexPosition / dim * (dim / min(dim.x, dim.y)) * 1.5;
         vec3 N = normalize(texture2D(uNormal, uv).xyz * 2.0 - 1.0); // Normal vector
         vec2 nnA = texture2D(uLightDir, vUvs).xy;
         vec2 nnB = texture2D(uLightDir, vUvs).zw;
@@ -191,7 +191,7 @@ const fragmentNormal = `
         vec3 LA = normalize(lightPosA - vertexPos); // LightA direction
         vec3 LB = normalize(lightPosB - vertexPos); // LightA direction
         
-        float shininess = (texture2D(uRoughness, uv).r) * 250.0;
+        float shininess = (texture2D(uRoughness, uv).r) * 100.0;
         float specularA = pow(max(reflect(-LA, N).z, 0.0), shininess);
         float specularB = pow(max(reflect(-LB, N).z, 0.0), shininess);
 
@@ -203,11 +203,11 @@ const fragmentNormal = `
         float influenceB = 1.0 - lightColorB.a;
         lightColorB *= influenceB;
 
-        gl_FragColor = vec4(((texture2D(uTexture,uv).rgb + lightColorA.rgb + lightColorB.rgb) * 0.05 +
-                                mix(dot(LA, N) * lightColorA.rgb, specularA * lightColorA.rgb, 0.35) * influenceA +
+        gl_FragColor = vec4(((texture2D(uTexture,uv).rgb + lightColorA.rgb + lightColorB.rgb) * 0.1 +
+                                mix(dot(LA, N) * lightColorA.rgb, specularA * lightColorA.rgb, 0.2) * influenceA +
                                 mix(dot(LB, N) * lightColorB.rgb, specularB * lightColorB.rgb, 0.6) * influenceB * 0.5
                             )
-                            * pow(texture2D(uAmbient, uv).r, 1.5) * 1.5, 1.0);
+                            * pow(texture2D(uAmbient, uv).r, 1.5), 1.0);
     }`;
 
 function voronoiShader(source, radius, uniforms) {
