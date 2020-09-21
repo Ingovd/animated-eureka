@@ -25,7 +25,7 @@ class Game extends PIXI.Application {
             2) // the size of the attribute
         .addIndex([0, 1, 2, 0, 2, 3]);
 
-        const options = {resolution: 0.2, width: this.w, height: this.h};
+        const options = {resolution: 0.1, width: this.w, height: this.h};
         this.lightBufferA = PIXI.RenderTexture.create(options);
         this.lightBufferB = PIXI.RenderTexture.create(options);
     }
@@ -356,7 +356,7 @@ class Wall extends PIXI.Container {
         // Perform JFA to generate a Nearest Neighbour map
         let inBuffer = this.bufferA;
         let outBuffer = this.bufferB;
-        for(let i = 7; i >= 0; i--) {
+        for(let i = 5; i >= 0; i--) {
             this.jfaUniforms.uTexIn = inBuffer;
             this.jfaUniforms.step = Math.pow(2, i) / this.lightRes;
             G.renderer.render(this.jfaQuad, outBuffer);

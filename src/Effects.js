@@ -179,7 +179,7 @@ const fragmentNormal = `
     }
 
     void main(void) {
-        vec2 uv = vVertexPosition / dim * (dim / min(dim.x, dim.y)) * 1.5;
+        vec2 uv = vVertexPosition / dim * (dim / min(dim.x, dim.y)) * 1.25;
         vec3 N = normalize(texture2D(uNormal, uv).xyz * 2.0 - 1.0); // Normal vector
         vec2 nnA = texture2D(uLightDir, vUvs).xy;
         vec2 nnB = texture2D(uLightDir, vUvs).zw;
@@ -197,17 +197,17 @@ const fragmentNormal = `
 
         vec4 lightColorA = texture2D(uLightA, vUvs);
         float influenceA = 1.0 - lightColorA.a;
-        lightColorA *= influenceA;
+        lightColorA *= influenceA * influenceA * 2.0;
 
         vec4 lightColorB = texture2D(uLightB, vUvs);
         float influenceB = 1.0 - lightColorB.a;
-        lightColorB *= influenceB;
+        lightColorB *= influenceB * influenceB * 2.0;
 
-        gl_FragColor = vec4(((texture2D(uTexture,uv).rgb + lightColorA.rgb + lightColorB.rgb) * 0.1 +
-                                mix(dot(LA, N) * lightColorA.rgb, specularA * lightColorA.rgb, 0.2) * influenceA +
-                                mix(dot(LB, N) * lightColorB.rgb, specularB * lightColorB.rgb, 0.6) * influenceB * 0.5
+        gl_FragColor = vec4((0.2 +
+                                mix(dot(LA, N) * lightColorA.rgb, specularA * lightColorA.rgb, 0.5) +
+                                mix(dot(LB, N) * lightColorB.rgb, specularB * lightColorB.rgb, 0.8)
                             )
-                            * pow(texture2D(uAmbient, uv).r, 1.5), 1.0);
+                            * texture2D(uTexture,uv).rgb * texture2D(uAmbient, uv).r, 1.0);
     }`;
 
 /** @function voronoiShader Convenience method for building the parametrized program. */
